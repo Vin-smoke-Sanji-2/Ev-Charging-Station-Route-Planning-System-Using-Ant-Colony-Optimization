@@ -30,10 +30,10 @@ class AuthController extends Controller
             'status' => ($data['role'] ?? 'ev_owner') === 'station_owner' ? 'pending' : 'active',
         ]);
 
-        return response()->json([
-            'user' => $user,
-            'token' => $user->createToken('api')->plainTextToken,
-        ], 201);
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return response()->json($user, 201);
     }
 
     public function login(Request $request)
@@ -47,17 +47,16 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $user = User::where('email', $credentials['email'])->firstOrFail();
+        $request->session()->regenerate();
 
-        return response()->json([
-            'user' => $user,
-            'token' => $user->createToken('api')->plainTextToken,
-        ]);
+        return response()->json(Auth::user());
     }
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json(['message' => 'Logged out']);
     }
