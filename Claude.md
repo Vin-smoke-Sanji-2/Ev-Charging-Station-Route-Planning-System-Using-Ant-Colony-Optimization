@@ -145,6 +145,104 @@ historical "which slot did this session use" record for no benefit.
 `ChargingSessionTest::test_completing_a_session_promotes_the_next_waiting_session`
 asserts this shared-`slot_id` behavior explicitly.
 
+## Frontend status
+
+**EV owner-facing screens built and verified in a real browser** (Blade +
+Bootstrap 5 + vanilla JS + Leaflet, per the stack — no JS framework, no
+axios; `resources/js/bootstrap.js` is unused dead scaffolding left over
+from `laravel new`). Built so far:
+
+- Shared layouts: `resources/views/layouts/guest.blade.php` (landing/
+  login/register) and `layouts/app.blade.php` (navbar + left sidebar
+  nav — Dashboard, Plan Trip, Live Trip, Stations, Trip History, My
+  EVs, Favorites, Notifications, Profile, Logout). Green/white
+  branding lives entirely in `resources/css/app.css` as overrides on
+  top of stock Bootstrap (no Sass rebuild — Bootstrap ships one fixed
+  `--bs-primary`, so re-theming means overriding `.btn-primary` etc.
+  directly, not swapping a variable).
+- `home.blade.php` (landing), `auth/login.blade.php`, `auth/register.blade.php`,
+  `dashboard.blade.php` (minimal post-login landing spot).
+- `trips/plan.blade.php` — origin/destination/vehicle/battery% form,
+  posts to `POST /api/trips`, redirects to `/trips/{id}`.
+- `trips/show.blade.php` — route result screen: distance/duration/
+  cost/stop-count stat tiles, a Leaflet map (origin + destination +
+  any charging stops, joined by a dashed placeholder line since real
+  route geometry doesn't exist until the ACO engine lands), and a
+  charging-stops list. Handles the current all-null/empty-stops state
+  from the `planRoute()` placeholder gracefully (dashes instead of
+  blanks, an explanatory empty-state message, map still renders with
+  just the two endpoints) — confirmed both the empty state and a
+  manually-seeded populated state render correctly.
+- Sidebar links with no screen yet (Live Trip, Stations, Trip History,
+  My EVs, Favorites, Notifications, Profile) point at a shared
+  `coming-soon.blade.php` placeholder so nothing 404s.
+
+**`resources/js/api.js`** is the *only* thing allowed to call
+`fetch()` against `/api/*` — one exported `apiFetch(url, options)`
+that lazily GETs `/sanctum/csrf-cookie` once per page load, always
+sets `Accept: application/json` + `credentials: 'same-origin'`, adds
+`X-XSRF-TOKEN` on non-GET requests, and redirects to `/login` on a 401
+— **except** when the caller passes `redirectOn401: false`, which
+`login.js`/`register.js` do for their own submit calls, since a wrong
+password/email is an *expected* 401 they need to show inline, not a
+"session expired" signal.
+
+**Page routes are protected server-side**, not just client-side: since
+`auth:sanctum`'s `statefulApi()` guard is backed by the `web` session
+guard (see Auth strategy above), the *same* session cookie authenticates
+both `/api/*` calls and plain Blade page loads. So `routes/web.php`
+wraps `/dashboard`, `/trips/*`, etc. in the standard `auth` middleware
+(named `login` route required, or it 500s trying to redirect — same
+root cause as the `Accept: application/json` gotcha) and `/login` /
+`/register` in `guest`, both framework-default aliases, no custom
+middleware class needed.
+
+**Leaflet gotcha (fixed 2026-08-04):** in `trip-show.js`'s `renderMap()`,
+never add the tile layer before the map has a real view. The original
+code did `L.map('trip-map')` (no center/zoom) → `tileLayer(...).addTo(map)`
+→ `fitBounds(points)` afterward. That first `.addTo(map)` call let the
+tile layer start loading tiles for the map's default/undefined view,
+and then `fitBounds()`'s implicit pan/zoom *animation* stepped through
+every intermediate zoom level between that default and the real one —
+each step fetching a full tile grid and cancelling the previous one.
+One page load generated 800+ requests and took 1.5+ minutes. Fix:
+compute `points`/bounds first, call `fitBounds(points, { animate: false })`
+(or `setView(..., { animate: false })` for the single-point case) to
+settle the map's *only* view, and only then add the tile layer and
+markers. Confirmed after the fix: `/trips/2` loads in ~25 total
+requests (~15 of them tiles, one correctly-sized grid), under 1MB,
+~2s to network-idle.
+
+**Build step:** Vite (`laravel-vite-plugin`) bundles `bootstrap`,
+`bootstrap-icons`, and `leaflet` from npm (added as deps; `tailwindcss`
+was already in `package.json` from `laravel new` but is unused — no
+`@tailwind` directives anywhere, harmless dead config). Multi-page,
+not a real SPA: every screen with its own JS is a separate Vite entry
+in `vite.config.js`'s `input` array (`app.js` plus one file per page
+under `resources/js/pages/`) — adding a new screen means adding its
+entry there too, or `npm run build` fails with "Could not resolve
+entry module." **Run `npm run build` (not `npm run dev`) before
+testing with `php artisan serve`** — `@vite()` falls back to reading
+`public/build/manifest.json` when no Vite dev server is running
+(detected via a `public/hot` file), so a one-time build is enough; no
+need to keep a Vite dev server up alongside `artisan serve`.
+
+**Verified how:** no browser available directly in this environment,
+so verification used a throwaway Playwright script (chromium, headless)
+driven against a real `php artisan serve` instance — screenshots plus
+`page.on('response')`/`console` listeners to confirm the exact `/api/*`
+calls, status codes, and absence of JS errors, not just that pages
+rendered. Confirmed: full register → dashboard → logout →
+dashboard-redirects-to-login → wrong-password-shows-inline-error →
+correct-login-reaches-dashboard cycle; full plan-trip →
+POST /api/trips (201) → redirect to `/trips/{id}` cycle; both the
+empty-route and populated-route states of the result screen. The dev
+database now has a handful of seeded rows (one `EvModel`, three
+`RoadNode`s — Yangon/Mandalay/Naypyidaw, one verified `ChargingStation`,
+one test user's vehicle and trip) left over from that verification —
+harmless real sample data, not cleaned up, useful for exercising the
+frontend by hand going forward.
+
 ## Guardrails
 
 - Never delete a file under `database/migrations/` without checking
@@ -172,9 +270,12 @@ asserts this shared-`slot_id` behavior explicitly.
    cleanly~~ — done, confirmed via real register/login calls.
 2. ~~Write feature tests covering the backend~~ — done, 88 passing
    tests against a real MySQL test database (see Testing strategy).
-3. Build the frontend (Leaflet.js map, trip planning form, live trip
-   dashboard, station owner and admin dashboards) per the UI mockups —
-   starting with the EV owner-facing screens.
+3. ~~Build the EV owner-facing screens~~ — done: shared layout/nav,
+   landing/login/register, trip planning form, and the route result
+   screen with its Leaflet map (see Frontend status). Station owner
+   and admin dashboards, and the remaining EV-owner screens (Live
+   Trip, Stations, Trip History, My EVs, Favorites, Notifications,
+   Profile) are still just `coming-soon` placeholders in the sidebar.
 4. Implement the ACO route engine in `TripController::planRoute()` —
    builds a graph from `road_nodes`/`road_edges`, scores candidate
    routes on distance, live station occupancy, and remaining battery

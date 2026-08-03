@@ -1,3 +1,148 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Green-and-white EV branding, layered on top of stock Bootstrap 5. */
+
+:root {
+    --ev-green: #16a34a;
+    --ev-green-dark: #15803d;
+    --ev-green-darker: #14532d;
+    --ev-green-light: #dcfce7;
+    --ev-green-pale: #f0fdf4;
+}
+
+body {
+    background-color: var(--ev-green-pale);
+}
+
+/* --- Buttons / links reskinned to the brand green --- */
+
+.btn-primary {
+    background-color: var(--ev-green);
+    border-color: var(--ev-green);
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+    background-color: var(--ev-green-dark) !important;
+    border-color: var(--ev-green-dark) !important;
+}
+
+.btn-outline-primary {
+    color: var(--ev-green-dark);
+    border-color: var(--ev-green);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--ev-green);
+    border-color: var(--ev-green);
+}
+
+a {
+    color: var(--ev-green-dark);
+}
+
+a:hover {
+    color: var(--ev-green-darker);
+}
+
+.text-brand {
+    color: var(--ev-green-dark) !important;
+}
+
+.bg-brand {
+    background-color: var(--ev-green) !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--ev-green);
+    box-shadow: 0 0 0 0.2rem rgba(22, 163, 74, 0.2);
+}
+
+/* --- App shell: top navbar + left sidebar --- */
+
+.app-navbar {
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--ev-green-light);
+}
+
+.app-navbar .navbar-brand {
+    color: var(--ev-green-dark);
+    font-weight: 700;
+}
+
+.app-navbar .navbar-brand .bi {
+    color: var(--ev-green);
+}
+
+.app-shell {
+    display: flex;
+    min-height: calc(100vh - 56px);
+}
+
+.app-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background-color: #ffffff;
+    border-right: 1px solid var(--ev-green-light);
+}
+
+.app-sidebar .nav-link {
+    color: #374151;
+    border-radius: 0.5rem;
+    margin: 0.15rem 0.6rem;
+    padding: 0.55rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.app-sidebar .nav-link:hover {
+    background-color: var(--ev-green-pale);
+    color: var(--ev-green-dark);
+}
+
+.app-sidebar .nav-link.active {
+    background-color: var(--ev-green-light);
+    color: var(--ev-green-darker);
+    font-weight: 600;
+}
+
+.app-main {
+    flex: 1;
+    min-width: 0;
+    padding: 1.75rem;
+}
+
+/* --- Auth (guest) pages --- */
+
+.auth-shell {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, var(--ev-green-pale) 0%, #ffffff 60%);
+    padding: 1.5rem;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+}
+
+/* --- Misc --- */
+
+.badge-verified {
+    background-color: var(--ev-green);
+}
+
+#trip-map {
+    width: 100%;
+    height: 420px;
+    border-radius: 0.5rem;
+    border: 1px solid var(--ev-green-light);
+}
+
+.coming-soon-icon {
+    font-size: 3rem;
+    color: var(--ev-green);
+}
