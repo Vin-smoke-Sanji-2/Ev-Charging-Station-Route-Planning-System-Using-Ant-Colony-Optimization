@@ -56,7 +56,8 @@ class ChargingSessionTest extends TestCase
     {
         $userA = $this->makeUser();
         $userB = $this->makeUser();
-        $station = $this->makeStation();
+        $owner = $this->makeStationOwner();
+        $station = $this->makeStation($owner);
         $slot = $this->makeSlot($station, ['status' => 'available']);
 
         // First joiner gets the only slot immediately.
@@ -73,8 +74,9 @@ class ChargingSessionTest extends TestCase
             ->assertJsonPath('status', 'waiting')
             ->json();
 
-        // Completing A's session should free the slot and promote B.
-        $response = $this->actingAs($userA)->putJson("/api/sessions/{$sessionA['id']}", [
+        // Completing A's session should free the slot and promote B. Only
+        // the station's owner (or an admin) may transition a session.
+        $response = $this->actingAs($owner)->putJson("/api/sessions/{$sessionA['id']}", [
             'status' => 'completed',
             'energy_kwh' => 12.5,
             'payment_amount' => 5000,
@@ -108,7 +110,8 @@ class ChargingSessionTest extends TestCase
     {
         $userA = $this->makeUser();
         $userB = $this->makeUser();
-        $station = $this->makeStation();
+        $owner = $this->makeStationOwner();
+        $station = $this->makeStation($owner);
         $slot = $this->makeSlot($station, ['status' => 'available']);
 
         $sessionA = $this->actingAs($userA)
@@ -119,7 +122,7 @@ class ChargingSessionTest extends TestCase
             ->postJson("/api/stations/{$station->id}/sessions", [])
             ->json();
 
-        $this->actingAs($userA)->putJson("/api/sessions/{$sessionA['id']}", [
+        $this->actingAs($owner)->putJson("/api/sessions/{$sessionA['id']}", [
             'status' => 'cancelled',
         ])->assertStatus(200)->assertJsonPath('status', 'cancelled');
 
@@ -133,14 +136,15 @@ class ChargingSessionTest extends TestCase
     public function test_completing_a_session_with_no_one_waiting_just_frees_the_slot(): void
     {
         $user = $this->makeUser();
-        $station = $this->makeStation();
+        $owner = $this->makeStationOwner();
+        $station = $this->makeStation($owner);
         $slot = $this->makeSlot($station, ['status' => 'available']);
 
         $session = $this->actingAs($user)
             ->postJson("/api/stations/{$station->id}/sessions", [])
             ->json();
 
-        $this->actingAs($user)->putJson("/api/sessions/{$session['id']}", [
+        $this->actingAs($owner)->putJson("/api/sessions/{$session['id']}", [
             'status' => 'completed',
         ])->assertStatus(200);
 
@@ -150,14 +154,85 @@ class ChargingSessionTest extends TestCase
     public function test_manually_moving_a_waiting_session_to_charging_requires_an_available_slot(): void
     {
         $user = $this->makeUser();
-        $station = $this->makeStation();
+        $owner = $this->makeStationOwner();
+        $station = $this->makeStation($owner);
         $this->makeSlot($station, ['status' => 'occupied']);
 
         $session = $this->makeSession($station, $user, ['status' => 'waiting']);
 
-        $this->actingAs($user)->putJson("/api/sessions/{$session->id}", [
+        $this->actingAs($owner)->putJson("/api/sessions/{$session->id}", [
             'status' => 'charging',
         ])->assertStatus(422)->assertJson(['message' => 'No available slot to assign yet']);
+    }
+
+    public function test_joining_with_another_users_vehicle_id_is_rejected(): void
+    {
+        $vehicleOwner = $this->makeUser();
+        $intruder = $this->makeUser();
+        $vehicle = $this->makeVehicle($vehicleOwner);
+        $station = $this->makeStation();
+
+        $response = $this->actingAs($intruder)->postJson("/api/stations/{$station->id}/sessions", [
+            'vehicle_id' => $vehicle->id,
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors('vehicle_id');
+        $this->assertDatabaseCount('charging_sessions', 0);
+    }
+
+    public function test_joining_with_own_vehicle_id_succeeds(): void
+    {
+        $user = $this->makeUser();
+        $vehicle = $this->makeVehicle($user);
+        $station = $this->makeStation();
+
+        $response = $this->actingAs($user)->postJson("/api/stations/{$station->id}/sessions", [
+            'vehicle_id' => $vehicle->id,
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('charging_sessions', [
+            'user_id' => $user->id,
+            'vehicle_id' => $vehicle->id,
+        ]);
+    }
+
+    public function test_joining_with_another_users_trip_route_id_is_rejected(): void
+    {
+        $tripOwner = $this->makeUser();
+        $intruder = $this->makeUser();
+        $origin = $this->makeRoadNode(['name' => 'Yangon']);
+        $destination = $this->makeRoadNode(['name' => 'Mandalay']);
+        $trip = $this->makeTripRequest($tripOwner, $origin, $destination);
+        $route = $this->makeTripRoute($trip);
+        $station = $this->makeStation();
+
+        $response = $this->actingAs($intruder)->postJson("/api/stations/{$station->id}/sessions", [
+            'trip_route_id' => $route->id,
+        ]);
+
+        $response->assertStatus(422)->assertJson(['message' => 'This trip route does not belong to you.']);
+        $this->assertDatabaseCount('charging_sessions', 0);
+    }
+
+    public function test_joining_with_own_trip_route_id_succeeds(): void
+    {
+        $user = $this->makeUser();
+        $origin = $this->makeRoadNode(['name' => 'Yangon']);
+        $destination = $this->makeRoadNode(['name' => 'Mandalay']);
+        $trip = $this->makeTripRequest($user, $origin, $destination);
+        $route = $this->makeTripRoute($trip);
+        $station = $this->makeStation();
+
+        $response = $this->actingAs($user)->postJson("/api/stations/{$station->id}/sessions", [
+            'trip_route_id' => $route->id,
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('charging_sessions', [
+            'user_id' => $user->id,
+            'trip_route_id' => $route->id,
+        ]);
     }
 
     public function test_index_scopes_sessions_by_role(): void

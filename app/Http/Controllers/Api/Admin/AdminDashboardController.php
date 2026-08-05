@@ -36,7 +36,7 @@ class AdminDashboardController extends Controller
     public function updateUserStatus(Request $request, User $user)
     {
         $data = $request->validate([
-            'status' => 'required|in:active,pending,suspended',
+            'status' => 'required|in:active,pending,suspended,rejected',
         ]);
 
         $user->update($data);

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ChargingSession;
 use App\Models\ChargingStation;
+use App\Models\TripRoute;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ChargingSessionController extends Controller
 {
@@ -45,9 +47,21 @@ class ChargingSessionController extends Controller
     public function store(Request $request, ChargingStation $station)
     {
         $data = $request->validate([
-            'vehicle_id' => 'nullable|exists:user_vehicles,id',
+            'vehicle_id' => [
+                'nullable',
+                Rule::exists('user_vehicles', 'id')->where('user_id', $request->user()->id),
+            ],
             'trip_route_id' => 'nullable|exists:trip_routes,id',
         ]);
+
+        if (! empty($data['trip_route_id'])) {
+            $tripRoute = TripRoute::with('tripRequest')->find($data['trip_route_id']);
+            abort_if(
+                $tripRoute->tripRequest->user_id !== $request->user()->id,
+                422,
+                'This trip route does not belong to you.'
+            );
+        }
 
         $slot = $station->slots()->where('status', 'available')->first();
 
@@ -77,6 +91,15 @@ class ChargingSessionController extends Controller
      */
     public function update(Request $request, ChargingSession $session)
     {
+        abort_unless(
+            $request->user()->isAdmin() || $session->station->owner_user_id === $request->user()->id,
+            403
+        );
+
+        if ($message = $request->user()->stationOwnerAccessDeniedMessage()) {
+            abort(403, $message);
+        }
+
         $data = $request->validate([
             'status' => 'required|in:charging,completed,cancelled',
             'energy_kwh' => 'nullable|numeric|min:0',

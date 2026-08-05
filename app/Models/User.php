@@ -77,4 +77,18 @@ class User extends Authenticatable
     {
         return $this->role === 'station_owner';
     }
+
+    public function stationOwnerAccessDeniedMessage(): ?string
+    {
+        if ($this->role !== 'station_owner' || $this->status === 'active') {
+            return null;
+        }
+
+        return match ($this->status) {
+            'pending' => 'Your station owner account is pending admin approval.',
+            'rejected' => 'Your station owner application was not approved.',
+            'suspended' => 'Your station owner account has been suspended.',
+            default => 'Your station owner account cannot access this feature.',
+        };
+    }
 }

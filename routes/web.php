@@ -26,7 +26,7 @@ Route::middleware('auth')->group(function () {
     })->name('trips.plan');
 
     Route::get('/trips/history', function () {
-        return view('coming-soon', ['title' => 'Trip History', 'icon' => 'clock-history']);
+        return view('trips.history');
     })->name('trips.history');
 
     Route::get('/trips/live', function () {
@@ -38,11 +38,15 @@ Route::middleware('auth')->group(function () {
     })->name('trips.show');
 
     Route::get('/stations', function () {
-        return view('coming-soon', ['title' => 'Stations', 'icon' => 'ev-station']);
+        return view('stations.index');
     })->name('stations.index');
 
+    Route::get('/stations/{station}', function (int $station) {
+        return view('stations.show', ['stationId' => $station]);
+    })->name('stations.show');
+
     Route::get('/vehicles', function () {
-        return view('coming-soon', ['title' => 'My EVs', 'icon' => 'car-front']);
+        return view('vehicles.index');
     })->name('vehicles.index');
 
     Route::get('/favorites', function () {

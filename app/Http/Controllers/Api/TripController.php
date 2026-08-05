@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\TripRequest;
 use App\Models\TripRoute;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class TripController extends Controller
 {
@@ -46,7 +47,10 @@ class TripController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'vehicle_id' => 'required|exists:user_vehicles,id',
+            'vehicle_id' => [
+                'required',
+                Rule::exists('user_vehicles', 'id')->where('user_id', $request->user()->id),
+            ],
             'origin_node_id' => 'required|exists:road_nodes,id',
             'destination_node_id' => 'required|exists:road_nodes,id|different:origin_node_id',
             'battery_percent' => 'required|numeric|min:0|max:100',

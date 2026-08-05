@@ -7,6 +7,8 @@ use App\Models\ChargingSlot;
 use App\Models\ChargingStation;
 use App\Models\EvModel;
 use App\Models\RoadNode;
+use App\Models\TripRequest;
+use App\Models\TripRoute;
 use App\Models\User;
 use App\Models\UserVehicle;
 
@@ -14,17 +16,17 @@ trait CreatesTestData
 {
     protected function makeUser(array $attrs = []): User
     {
-        return User::factory()->create($attrs);
+        return User::factory()->create(array_merge(['status' => 'active'], $attrs));
     }
 
     protected function makeAdmin(array $attrs = []): User
     {
-        return User::factory()->create(array_merge(['role' => 'admin'], $attrs));
+        return User::factory()->create(array_merge(['role' => 'admin', 'status' => 'active'], $attrs));
     }
 
     protected function makeStationOwner(array $attrs = []): User
     {
-        return User::factory()->create(array_merge(['role' => 'station_owner'], $attrs));
+        return User::factory()->create(array_merge(['role' => 'station_owner', 'status' => 'active'], $attrs));
     }
 
     protected function makeEvModel(array $attrs = []): EvModel
@@ -100,6 +102,33 @@ trait CreatesTestData
             'latitude' => 16.8,
             'longitude' => 96.15,
             'type' => 'city',
+        ], $attrs));
+    }
+
+    protected function makeTripRequest(
+        User $user,
+        RoadNode $origin,
+        RoadNode $destination,
+        ?UserVehicle $vehicle = null,
+        array $attrs = []
+    ): TripRequest {
+        return TripRequest::create(array_merge([
+            'user_id' => $user->id,
+            'vehicle_id' => ($vehicle ?? $this->makeVehicle($user))->id,
+            'origin_node_id' => $origin->id,
+            'destination_node_id' => $destination->id,
+            'battery_percent' => 80,
+            'requested_at' => now(),
+        ], $attrs));
+    }
+
+    protected function makeTripRoute(TripRequest $trip, array $attrs = []): TripRoute
+    {
+        return TripRoute::create(array_merge([
+            'trip_request_id' => $trip->id,
+            'previous_route_id' => null,
+            'recalculation_reason' => null,
+            'status' => 'planned',
         ], $attrs));
     }
 }

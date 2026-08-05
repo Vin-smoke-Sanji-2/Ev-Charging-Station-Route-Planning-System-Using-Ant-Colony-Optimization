@@ -22,6 +22,10 @@ class EnsureUserHasRole
             return response()->json(['message' => 'Forbidden: insufficient role'], 403);
         }
 
+        if ($message = $user->stationOwnerAccessDeniedMessage()) {
+            return response()->json(['message' => $message], 403);
+        }
+
         return $next($request);
     }
 }

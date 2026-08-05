@@ -32,6 +32,14 @@ async function loadVehicles(select, noVehiclesAlert, submitBtn) {
         const label = vehicle.plate_no ? `${model} - ${vehicle.plate_no}` : model;
         return `<option value="${vehicle.id}">${label}</option>`;
     }).join('');
+
+    // Pre-select the user's default vehicle, if they have one - just the
+    // starting selection, not enforced. The user can still freely change it,
+    // and the submit handler reads whatever is selected at submit time.
+    const defaultVehicle = vehicles.find((vehicle) => vehicle.is_default);
+    if (defaultVehicle) {
+        select.value = defaultVehicle.id;
+    }
 }
 
 async function loadRoadNodes(originSelect, destinationSelect) {
