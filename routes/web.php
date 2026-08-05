@@ -50,11 +50,11 @@ Route::middleware('auth')->group(function () {
     })->name('vehicles.index');
 
     Route::get('/favorites', function () {
-        return view('coming-soon', ['title' => 'Favorites', 'icon' => 'heart']);
+        return view('favorites.index');
     })->name('favorites.index');
 
     Route::get('/notifications', function () {
-        return view('coming-soon', ['title' => 'Notifications', 'icon' => 'bell']);
+        return view('notifications.index');
     })->name('notifications.index');
 
     Route::get('/profile', function () {

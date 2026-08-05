@@ -14,6 +14,8 @@ export default defineConfig({
                 'resources/js/pages/trip-history.js',
                 'resources/js/pages/stations-index.js',
                 'resources/js/pages/stations-show.js',
+                'resources/js/pages/favorites-index.js',
+                'resources/js/pages/notifications-index.js',
             ],
             refresh: true,
         }),
