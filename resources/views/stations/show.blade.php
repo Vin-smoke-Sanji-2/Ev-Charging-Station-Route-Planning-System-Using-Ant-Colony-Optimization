@@ -17,9 +17,23 @@
                     <h2 class="mb-1" id="station-name"></h2>
                     <p class="text-muted mb-0" id="station-township"></p>
                 </div>
-                <button type="button" class="btn btn-outline-danger" id="favorite-btn">
-                    <i class="bi bi-heart" id="favorite-icon"></i> <span id="favorite-label">Favorite</span>
-                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-secondary" id="navigate-btn">
+                        <i class="bi bi-signpost-split"></i> Navigate
+                    </button>
+                    <button type="button" class="btn btn-icon-circle btn-icon-circle--muted" id="favorite-btn">
+                        <i class="bi bi-heart" id="favorite-icon"></i>
+                        <span id="favorite-label" class="visually-hidden">Favorite</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="navigate-status" class="small mb-3 d-none"></div>
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body p-0">
+                    <div id="station-map"></div>
+                </div>
             </div>
 
             <div class="row g-3 mb-3">

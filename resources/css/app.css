@@ -1,77 +1,590 @@
-/* Green-and-white EV branding, layered on top of stock Bootstrap 5. */
+/* Burgundy / navy / gold / cream design system - EV Route Planner
+   branding. Originally piloted on just the Home page + shared navbar
+   (2026-08-06), then a small .btn-icon-circle slice (2026-08-07); as
+   of 2026-08-08 this is the system for the ENTIRE authenticated app
+   plus the pre-login auth pages - there is no more old-green scope
+   left anywhere except one deliberate, permanent exception: the
+   Dashboard map's AC+24/7 marker category and its Marker Guide swatch
+   keep their green (#16a34a) - see the Dashboard section below. */
 
 :root {
-    --ev-green: #16a34a;
-    --ev-green-dark: #15803d;
-    --ev-green-darker: #14532d;
-    --ev-green-light: #dcfce7;
-    --ev-green-pale: #f0fdf4;
+    --color-primary: #7A1E3C;
+    --color-primary-hover: #611830;
+    --color-secondary: #2E3A59;
+    --color-secondary-hover: #232C44;
+    --color-accent: #C9A464;
+    --color-accent-hover: #B08F52;
+    --color-base: #F8F4EC;
+    --color-favorite: #E88A93;
+    --color-favorite-hover: #D9727C;
+    --color-terracotta: #C1633B;
+    --color-terracotta-hover: #A8522F;
+    --color-plum: #6B4062;
+    --color-plum-hover: #58344F;
+    --color-neutral: #E7E1D3;
+    --color-neutral-hover: #DAD2BF;
+    --color-primary-soft: #F2E1E7;
+    --color-secondary-soft: #E2E6ED;
+    --color-accent-soft: #F4EBD9;
+    --color-terracotta-soft: #F3E2D9;
+    --color-plum-soft: #EAE0E7;
+    /* Not part of the originally-specified soft set - derived to match
+       the same "pale tint of the icon's hue" pattern, since Home's 4th
+       card (Reviews & Favorites) uses the favorite icon color and needs
+       a matching soft background too. Contrast-checked against the
+       feature-icon-chip--favorite icon color (#c85e69): 3.51:1, safely
+       above the 3:1 WCAG minimum for graphical/icon contrast. */
+    --color-favorite-soft: #FBEDEF;
 }
 
 body {
-    background-color: var(--ev-green-pale);
+    background-color: var(--color-base);
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* --- Buttons / links reskinned to the brand green --- */
-
-.btn-primary {
-    background-color: var(--ev-green);
-    border-color: var(--ev-green);
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+    font-weight: 600;
+    color: var(--color-secondary);
 }
 
-.btn-primary:hover,
-.btn-primary:focus,
-.btn-primary:active {
-    background-color: var(--ev-green-dark) !important;
-    border-color: var(--ev-green-dark) !important;
+h1 {
+    font-size: clamp(2.25rem, 1.25rem + 4vw, 3.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
 }
 
-.btn-outline-primary {
-    color: var(--ev-green-dark);
-    border-color: var(--ev-green);
+h2 {
+    font-size: 2rem;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
 }
 
-.btn-outline-primary:hover {
-    background-color: var(--ev-green);
-    border-color: var(--ev-green);
+h3 {
+    font-size: 1.5rem;
+    letter-spacing: -0.01em;
+}
+
+h4, h5, h6 {
+    letter-spacing: -0.005em;
 }
 
 a {
-    color: var(--ev-green-dark);
+    color: var(--color-primary);
 }
 
 a:hover {
-    color: var(--ev-green-darker);
+    color: var(--color-primary-hover);
 }
 
+/* Plain links (e.g. Login/Register's "Sign up"/"Log in" text links) had
+   no custom focus styling anywhere - they fell back to the browser's
+   native default focus ring, which renders blue in most browsers.
+   Dark soft blue (secondary), not burgundy, so it doesn't compete with
+   the primary-colored focus rings buttons already use. */
+a:focus-visible {
+    outline: 2px solid var(--color-secondary);
+    outline-offset: 2px;
+}
+
+/* Shared Bootstrap components used across several pages (Trip History,
+   Station Detail's reviews, Notifications all use pagination; Stations
+   index and Trip History both use table-hover) - styled once here
+   rather than repeated per page. */
+.page-link {
+    color: var(--color-secondary);
+}
+
+.page-link:hover,
+.page-link:focus {
+    color: var(--color-primary);
+    background-color: var(--color-base);
+}
+
+.page-item.disabled .page-link {
+    color: #adb5bd;
+}
+
+.table-hover > tbody > tr:hover > * {
+    background-color: rgba(122, 30, 60, 0.05);
+}
+
+/* Trip History's status badges - a size bump over Bootstrap's default
+   (~0.75em relative) since "Planned" specifically was reported as too
+   small/subtle. Applied to all statuses in that table for a uniform
+   size, only "planned"'s color actually changed. */
+.badge-status {
+    font-size: 0.8rem;
+    padding: 0.42em 0.85em;
+}
+
+/* .text-brand/.bg-brand are used throughout the app for brand icon
+   accents and small status badges (e.g. "X / Y available" slot
+   counts) - both now map to the new palette instead of green.
+   bg-brand -> secondary navy specifically because that's what the
+   slot/station availability badges need (see CLAUDE.md). */
 .text-brand {
-    color: var(--ev-green-dark) !important;
+    color: var(--color-primary) !important;
 }
 
 .bg-brand {
-    background-color: var(--ev-green) !important;
+    background-color: var(--color-secondary) !important;
+}
+
+/* Reassignment #2 of the two permitted: an "active" trip's status badge
+   was Bootstrap's plain green .bg-success - now gold accent instead.
+   planned/completed/cancelled stay their original Bootstrap colors
+   (out of scope), and this utility is unrelated to true semantic
+   success/danger/warning (slot availability, form validation, etc.),
+   which are untouched everywhere. */
+.bg-accent {
+    background-color: var(--color-accent) !important;
+    color: #2e2410 !important;
 }
 
 .form-control:focus,
 .form-select:focus {
-    border-color: var(--ev-green);
-    box-shadow: 0 0 0 0.2rem rgba(22, 163, 74, 0.2);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.2rem rgba(122, 30, 60, 0.2);
 }
 
-/* --- App shell: top navbar + left sidebar --- */
+/* Checkboxes/radios (Stations' "Fast chargers only"/"Available now",
+   My EVs' "Set as default", etc.) - Bootstrap's checked state defaults
+   to its own blue, unrelated to either --bs-primary or our .btn-primary
+   override, so it needs its own explicit override. Global, not just
+   Stations, since every checkbox/radio in the app should match. */
+.form-check-input:checked {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.form-check-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.2rem rgba(122, 30, 60, 0.2);
+}
+
+/* ============================================================
+   BUTTONS - filled only, no .btn-outline-* used anywhere in this
+   app anymore. Pill-shaped, elevated with a real shadow, hover-lift,
+   active-compress, visible :focus-visible ring - one shared
+   convention across every variant.
+   ============================================================ */
+
+.btn-primary,
+.btn-secondary,
+.btn-accent,
+.btn-neutral,
+.btn-favorite,
+.btn-terracotta,
+.btn-plum {
+    border: none;
+    border-radius: 999px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.btn-primary {
+    background-color: var(--color-primary);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(122, 30, 60, 0.32);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--color-primary-hover) !important;
+    color: #fff !important;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(122, 30, 60, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0) scale(0.96);
+    box-shadow: 0 2px 8px rgba(122, 30, 60, 0.3);
+}
+
+.btn-primary:focus-visible {
+    outline: 3px solid rgba(122, 30, 60, 0.5);
+    outline-offset: 2px;
+}
+
+.btn-secondary {
+    background-color: var(--color-secondary);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(46, 58, 89, 0.32);
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus {
+    background-color: var(--color-secondary-hover) !important;
+    color: #fff !important;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(46, 58, 89, 0.4);
+}
+
+.btn-secondary:active {
+    transform: translateY(0) scale(0.96);
+    box-shadow: 0 2px 8px rgba(46, 58, 89, 0.3);
+}
+
+.btn-secondary:focus-visible {
+    outline: 3px solid rgba(46, 58, 89, 0.5);
+    outline-offset: 2px;
+}
+
+.btn-accent {
+    background-color: var(--color-accent);
+    color: #2e2410;
+    box-shadow: 0 4px 14px rgba(201, 164, 100, 0.35);
+}
+
+.btn-accent:hover,
+.btn-accent:focus {
+    background-color: var(--color-accent-hover);
+    color: #2e2410;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(201, 164, 100, 0.45);
+}
+
+.btn-accent:active {
+    transform: translateY(0) scale(0.96);
+    box-shadow: 0 2px 8px rgba(201, 164, 100, 0.35);
+}
+
+.btn-accent:focus-visible {
+    outline: 3px solid rgba(201, 164, 100, 0.6);
+    outline-offset: 2px;
+}
+
+/* Low-emphasis/dismissive actions (Cancel, Clear filters) - filled,
+   not outline, but deliberately quiet rather than competing with the
+   three core brand colors. */
+.btn-neutral {
+    background-color: var(--color-neutral);
+    color: var(--color-secondary);
+    box-shadow: 0 2px 8px rgba(46, 58, 89, 0.12);
+}
+
+.btn-neutral:hover,
+.btn-neutral:focus {
+    background-color: var(--color-neutral-hover);
+    color: var(--color-secondary);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(46, 58, 89, 0.18);
+}
+
+.btn-neutral:active {
+    transform: translateY(0) scale(0.96);
+    box-shadow: 0 2px 6px rgba(46, 58, 89, 0.15);
+}
+
+.btn-neutral:focus-visible {
+    outline: 3px solid rgba(46, 58, 89, 0.35);
+    outline-offset: 2px;
+}
+
+.btn-favorite {
+    background-color: var(--color-favorite);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(232, 138, 147, 0.4);
+}
+
+.btn-favorite:hover,
+.btn-favorite:focus {
+    background-color: var(--color-favorite-hover);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(232, 138, 147, 0.5);
+}
+
+.btn-favorite:active {
+    transform: translateY(0) scale(0.96);
+}
+
+.btn-favorite:focus-visible {
+    outline: 3px solid rgba(232, 138, 147, 0.6);
+    outline-offset: 2px;
+}
+
+.btn-terracotta {
+    background-color: var(--color-terracotta);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(193, 99, 59, 0.35);
+}
+
+.btn-terracotta:hover,
+.btn-terracotta:focus {
+    background-color: var(--color-terracotta-hover);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(193, 99, 59, 0.45);
+}
+
+.btn-terracotta:active {
+    transform: translateY(0) scale(0.96);
+}
+
+.btn-terracotta:focus-visible {
+    outline: 3px solid rgba(193, 99, 59, 0.55);
+    outline-offset: 2px;
+}
+
+.btn-plum {
+    background-color: var(--color-plum);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(107, 64, 98, 0.35);
+}
+
+.btn-plum:hover,
+.btn-plum:focus {
+    background-color: var(--color-plum-hover);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(107, 64, 98, 0.45);
+}
+
+.btn-plum:active {
+    transform: translateY(0) scale(0.96);
+}
+
+.btn-plum:focus-visible {
+    outline: 3px solid rgba(107, 64, 98, 0.55);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn-primary,
+    .btn-secondary,
+    .btn-accent,
+    .btn-neutral,
+    .btn-favorite,
+    .btn-terracotta,
+    .btn-plum,
+    .navbar-profile-btn {
+        transition: none;
+    }
+}
+
+/* ============================================================
+   CIRCULAR ICON-ONLY BUTTONS - small per-item actions (favorite
+   toggle, edit/delete on a card, mark-as-read) where a text label
+   would be too heavy. Same hover-lift/active-compress/focus-ring
+   convention as the pill buttons above.
+   ============================================================ */
+
+.btn-icon-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border-radius: 50%;
+    border: 1.5px solid transparent;
+    background-color: transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.btn-icon-circle i {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.btn-icon-circle:hover,
+.btn-icon-circle:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
+}
+
+.btn-icon-circle:active {
+    transform: translateY(0) scale(0.9);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.btn-icon-circle:focus-visible {
+    outline: 3px solid rgba(46, 58, 89, 0.4);
+    outline-offset: 2px;
+}
+
+/* Unfavorited/inactive state: outline circle, muted gray, no fill. */
+.btn-icon-circle--muted {
+    border-color: #adb5bd;
+    color: #6c757d;
+    box-shadow: none;
+}
+
+.btn-icon-circle--muted:hover,
+.btn-icon-circle--muted:focus {
+    border-color: #868e96;
+    color: #495057;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Generic filled-primary icon-circle (not currently used by hearts -
+   see --favorite below for those). */
+.btn-icon-circle--primary {
+    background-color: var(--color-primary);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(122, 30, 60, 0.35);
+}
+
+.btn-icon-circle--primary:hover,
+.btn-icon-circle--primary:focus {
+    background-color: var(--color-primary-hover);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(122, 30, 60, 0.45);
+}
+
+/* Favorited heart - the dedicated soft-red token, not burgundy and not
+   Bootstrap's generic .text-danger red. (An earlier pass deliberately
+   moved hearts from Bootstrap red to --color-primary/burgundy before
+   --color-favorite existed; now that the token exists, hearts use it
+   specifically so it isn't just falling through to the primary brand
+   color for lack of its own variant.) */
+.btn-icon-circle--favorite {
+    background-color: var(--color-favorite);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(232, 138, 147, 0.4);
+}
+
+.btn-icon-circle--favorite:hover,
+.btn-icon-circle--favorite:focus {
+    background-color: var(--color-favorite-hover);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(232, 138, 147, 0.5);
+}
+
+/* Edit-type actions. */
+.btn-icon-circle--secondary {
+    background-color: var(--color-secondary);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(46, 58, 89, 0.35);
+}
+
+.btn-icon-circle--secondary:hover,
+.btn-icon-circle--secondary:focus {
+    background-color: var(--color-secondary-hover);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(46, 58, 89, 0.45);
+}
+
+/* Mark-as-read-type actions. */
+.btn-icon-circle--accent {
+    background-color: var(--color-accent);
+    color: #2e2410;
+    box-shadow: 0 2px 10px rgba(201, 164, 100, 0.4);
+}
+
+.btn-icon-circle--accent:hover,
+.btn-icon-circle--accent:focus {
+    background-color: var(--color-accent-hover);
+    color: #2e2410;
+    box-shadow: 0 6px 16px rgba(201, 164, 100, 0.5);
+}
+
+/* Destructive actions. Deliberately Bootstrap's own --bs-danger, not a
+   brand token - success/danger/warning stay Bootstrap defaults for
+   anything genuinely semantic, everywhere, always. */
+.btn-icon-circle--danger {
+    background-color: var(--bs-danger);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(220, 53, 69, 0.35);
+}
+
+.btn-icon-circle--danger:hover,
+.btn-icon-circle--danger:focus {
+    background-color: #bb2d3b;
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.45);
+}
+
+/* Small non-interactive decorative badge - e.g. the leading "+" on My
+   EVs' "Add Vehicle" button. Not a standalone control (no hover/focus/
+   active states of its own), since the parent <button> already has
+   them; this only needs to look like a small brand-colored chip. */
+.btn-icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background-color: var(--color-primary);
+    color: #fff;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn-icon-circle {
+        transition: none;
+    }
+}
+
+/* ============================================================
+   APP SHELL: top navbar + left sidebar
+   ============================================================ */
 
 .app-navbar {
     background-color: #ffffff;
-    border-bottom: 1px solid var(--ev-green-light);
+    border-bottom: 1px solid #efe6d6;
 }
 
 .app-navbar .navbar-brand {
-    color: var(--ev-green-dark);
+    color: var(--color-secondary);
+    font-family: 'Fraunces', Georgia, serif;
     font-weight: 700;
 }
 
 .app-navbar .navbar-brand .bi {
-    color: var(--ev-green);
+    color: var(--color-primary);
+}
+
+.app-navbar .navbar-profile-btn {
+    background-color: transparent;
+    border: none;
+    border-radius: 999px;
+    padding: 0.25rem 0.9rem 0.25rem 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.app-navbar .navbar-profile-btn:hover,
+.app-navbar .navbar-profile-btn:focus {
+    background-color: rgba(46, 58, 89, 0.08);
+    transform: translateY(-1px);
+}
+
+.app-navbar .navbar-profile-btn:active {
+    transform: translateY(0) scale(0.97);
+}
+
+.app-navbar .navbar-profile-btn:focus-visible {
+    outline: 3px solid rgba(46, 58, 89, 0.45);
+    outline-offset: 2px;
+}
+
+.app-navbar .navbar-profile-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background-color: var(--color-secondary);
+    color: #fff;
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.app-navbar .navbar-profile-name {
+    color: var(--color-secondary);
+    font-weight: 600;
 }
 
 .app-shell {
@@ -83,29 +596,38 @@ a:hover {
     width: 240px;
     flex-shrink: 0;
     background-color: #ffffff;
-    border-right: 1px solid var(--ev-green-light);
+    border-right: 1px solid #efe6d6;
 }
 
 .app-sidebar .nav-link {
-    color: #374151;
+    color: #4b5563;
     border-radius: 0.5rem;
     margin: 0.15rem 0.6rem;
     padding: 0.55rem 0.9rem;
     display: flex;
     align-items: center;
     gap: 0.6rem;
+    transition: background-color 150ms ease, color 150ms ease;
 }
 
 .app-sidebar .nav-link:hover {
-    background-color: var(--ev-green-pale);
-    color: var(--ev-green-dark);
+    background-color: var(--color-base);
+    color: var(--color-primary);
 }
 
 .app-sidebar .nav-link.active {
-    background-color: var(--ev-green-light);
-    color: var(--ev-green-darker);
+    background-color: rgba(122, 30, 60, 0.1);
+    color: var(--color-primary);
     font-weight: 600;
 }
+
+.app-sidebar .nav-link:focus-visible {
+    outline: 2px solid rgba(122, 30, 60, 0.5);
+    outline-offset: -2px;
+}
+
+/* Logout is deliberately still Bootstrap's plain .text-danger - a
+   destructive/session-ending action, not a brand-colored nav item. */
 
 .app-main {
     flex: 1;
@@ -113,14 +635,16 @@ a:hover {
     padding: 1.75rem;
 }
 
-/* --- Auth (guest) pages --- */
+/* ============================================================
+   AUTH (guest) PAGES - Login/Register's shared shell
+   ============================================================ */
 
 .auth-shell {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(160deg, var(--ev-green-pale) 0%, #ffffff 60%);
+    background: linear-gradient(160deg, var(--color-base) 0%, #ffffff 60%);
     padding: 1.5rem;
 }
 
@@ -129,20 +653,290 @@ a:hover {
     max-width: 420px;
 }
 
-/* --- Misc --- */
+/* ============================================================
+   MISC
+   ============================================================ */
 
 .badge-verified {
-    background-color: var(--ev-green);
+    background-color: var(--color-secondary);
+}
+
+#trip-map,
+#station-map {
+    width: 100%;
+    height: 420px;
+    border: 1px solid #efe6d6;
+}
+
+/* station-map sits alone in its card, flush on all sides; trip-map now sits
+   below a header bar in the same card, so only its bottom corners round. */
+#station-map {
+    border-radius: 0.5rem;
 }
 
 #trip-map {
-    width: 100%;
-    height: 420px;
-    border-radius: 0.5rem;
-    border: 1px solid var(--ev-green-light);
+    border-radius: 0 0 0.5rem 0.5rem;
 }
 
 .coming-soon-icon {
     font-size: 3rem;
-    color: var(--ev-green);
+    color: var(--color-primary);
+}
+
+/* ============================================================
+   FLOATING CARDS - idle gentle bob, pause+lift on hover, compress on
+   click. Used on Home's 4 feature cards and the Dashboard's 3 overlay
+   cards. Stagger via explicit --1/--2/--3/--4 modifier classes (not
+   :nth-of-type, since these cards are sometimes wrapped in <a> tags
+   that would break sibling-position counting).
+   ============================================================ */
+
+@keyframes card-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+.floating-card {
+    animation: card-float 3.6s ease-in-out infinite;
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+/* Soft pale tint of each card's own icon hue - not a loud solid color,
+   just enough to visually pair the card with its icon. Contrast-
+   checked (WCAG non-text/graphical minimum 3:1) between each icon's
+   full-saturated color and its matching soft background: primary
+   8.03:1, secondary 8.99:1, accent 4.16:1, terracotta 3.26:1 (the
+   tightest, still passing), plum 6.44:1, favorite 3.51:1. */
+.card-tint-primary { background-color: var(--color-primary-soft); }
+.card-tint-secondary { background-color: var(--color-secondary-soft); }
+.card-tint-accent { background-color: var(--color-accent-soft); }
+.card-tint-terracotta { background-color: var(--color-terracotta-soft); }
+.card-tint-plum { background-color: var(--color-plum-soft); }
+.card-tint-favorite { background-color: var(--color-favorite-soft); }
+
+/* The icon's own chip circle goes near-white on a tinted card, so the
+   saturated icon color reads clearly against a neutral disc rather
+   than stacking two tints on top of each other. */
+.card-tint-primary .feature-icon-chip,
+.card-tint-secondary .feature-icon-chip,
+.card-tint-accent .feature-icon-chip,
+.card-tint-terracotta .feature-icon-chip,
+.card-tint-plum .feature-icon-chip,
+.card-tint-favorite .feature-icon-chip {
+    background-color: rgba(255, 255, 255, 0.65);
+}
+
+/* Dashboard's 3 overlay cards are real links (unlike Home's, which are
+   deliberately non-interactive) - hover gives a clear, deliberate
+   background+text color shift to the card's full-saturated icon color,
+   on top of the existing lift/shadow motion, not instead of it. */
+.dashboard-cards .card-tint-primary:hover { background-color: var(--color-primary); }
+.dashboard-cards .card-tint-terracotta:hover { background-color: var(--color-terracotta); }
+.dashboard-cards .card-tint-plum:hover { background-color: var(--color-plum); }
+
+.dashboard-cards h6,
+.dashboard-cards p,
+.dashboard-cards .feature-icon-chip {
+    transition: color 180ms ease, background-color 180ms ease;
+}
+
+.dashboard-cards .card:hover h6,
+.dashboard-cards .card:hover p {
+    color: #fff;
+}
+
+.dashboard-cards .card:hover .feature-icon-chip {
+    background-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+.floating-card--1 { animation-delay: 0s; }
+.floating-card--2 { animation-delay: 0.4s; }
+.floating-card--3 { animation-delay: 0.8s; }
+.floating-card--4 { animation-delay: 1.2s; }
+
+.floating-card:hover {
+    animation-play-state: paused;
+    transform: translateY(-8px);
+    box-shadow: 0 14px 28px rgba(46, 58, 89, 0.2);
+}
+
+.floating-card:active {
+    animation-play-state: paused;
+    transform: translateY(-2px) scale(0.98);
+    box-shadow: 0 6px 14px rgba(46, 58, 89, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .floating-card {
+        animation: none;
+    }
+
+    .floating-card:hover {
+        transform: translateY(-4px);
+    }
+}
+
+/* Small circular color chip behind a feature/overlay card's icon -
+   generalized from Home's original .home-feature-icon so Dashboard's
+   cards can use the same pattern with their own color modifiers. */
+.feature-icon-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    font-size: 1.35rem;
+}
+
+.feature-icon-chip--primary {
+    background-color: rgba(122, 30, 60, 0.1);
+    color: var(--color-primary);
+}
+
+.feature-icon-chip--secondary {
+    background-color: rgba(46, 58, 89, 0.1);
+    color: var(--color-secondary);
+}
+
+.feature-icon-chip--accent {
+    background-color: rgba(201, 164, 100, 0.18);
+    color: #8a6c2e;
+}
+
+.feature-icon-chip--favorite {
+    background-color: rgba(232, 138, 147, 0.18);
+    color: #c85e69;
+}
+
+.feature-icon-chip--terracotta {
+    background-color: rgba(193, 99, 59, 0.14);
+    color: var(--color-terracotta);
+}
+
+.feature-icon-chip--plum {
+    background-color: rgba(107, 64, 98, 0.12);
+    color: var(--color-plum);
+}
+
+/* ============================================================
+   DASHBOARD: full-background interactive map with floating overlays
+   Scoped to these dashboard-* classes only, so .app-main's padding
+   stays untouched for every other page. The negative margin here
+   cancels out that inherited padding just for this one shell, pulling
+   the map flush to the sidebar/navbar/viewport edges.
+   ============================================================ */
+
+.dashboard-map-shell {
+    position: relative;
+    margin: -1.75rem;
+    min-height: calc(100vh - 56px);
+    overflow: hidden;
+}
+
+#dashboard-map {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    /* Establishes its own stacking context so Leaflet's internal panes
+       (which use z-index values up to 700) can never render above the
+       overlay controls below, no matter how Leaflet stacks them internally. */
+    z-index: 1;
+}
+
+.dashboard-overlay {
+    position: absolute;
+    z-index: 500;
+}
+
+.dashboard-welcome {
+    top: 16px;
+    left: 16px;
+    background-color: rgba(255, 255, 255, 0.92);
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.dashboard-search {
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(420px, 90%);
+    z-index: 600;
+}
+
+.dashboard-search-bar {
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.dashboard-search-bar .form-control,
+.dashboard-search-bar .input-group-text {
+    background-color: #ffffff;
+}
+
+.dashboard-cards {
+    top: 90px;
+    right: 16px;
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.dashboard-guide-btn {
+    bottom: 16px;
+    left: 16px;
+    border-radius: 999px;
+}
+
+/* Marker Guide swatches are now small pin icons (matching the map's
+   actual marker shape) rather than plain color circles - color is set
+   inline per-swatch in the blade template, including the one
+   deliberately-still-green entry (AC + 24/7). */
+.dashboard-guide-swatch {
+    font-size: 1.35rem;
+    line-height: 1;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+
+/* Leaflet divIcon pin markers - drop-shadow gives the flat glyph some
+   depth against the map tiles. Color is set inline per-marker to match
+   its station category (see dashboard.js), same 5-color rule as the
+   guide swatches above, including the deliberately-still-green entry. */
+.dashboard-marker-pin {
+    font-size: 28px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+/* ============================================================
+   NEW DESIGN SYSTEM: Home page-specific chrome (charging-animation
+   panel, footer). Feature card colors/floating animation use the
+   shared .floating-card/.feature-icon-chip classes above.
+   ============================================================ */
+
+.home-charge-panel {
+    background-color: #ffffff;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    box-shadow: 0 6px 24px rgba(46, 58, 89, 0.1);
+}
+
+.home-footer {
+    color: var(--color-secondary);
+    opacity: 0.75;
+    border-top: 1px solid rgba(46, 58, 89, 0.12);
+    margin-top: 2rem;
+}
+
+/* Cards site-wide: a softer, more premium border-radius than
+   Bootstrap's default subtle rounding. */
+.card {
+    border-radius: 1rem;
 }

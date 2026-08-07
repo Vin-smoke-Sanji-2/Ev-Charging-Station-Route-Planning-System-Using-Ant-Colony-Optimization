@@ -122,4 +122,141 @@ class ChargingStationTest extends TestCase
 
         $this->assertDatabaseMissing('charging_stations', ['id' => $station->id]);
     }
+
+    public function test_index_flags_dc_only_station_correctly(): void
+    {
+        $station = $this->makeStation(null, ['name' => 'DC Only']);
+        $this->makeSlot($station, ['connector_type' => 'CCS2', 'power_type' => 'DC']);
+
+        $response = $this->getJson('/api/stations');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('0.has_dc_connector', true)
+            ->assertJsonPath('0.has_ac_connector', false);
+    }
+
+    public function test_index_flags_ac_only_station_correctly(): void
+    {
+        $station = $this->makeStation(null, ['name' => 'AC Only']);
+        $this->makeSlot($station, ['connector_type' => 'Type2']);
+
+        $response = $this->getJson('/api/stations');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('0.has_ac_connector', true)
+            ->assertJsonPath('0.has_dc_connector', false);
+    }
+
+    public function test_index_flags_station_with_both_connector_types(): void
+    {
+        $station = $this->makeStation(null, ['name' => 'Both']);
+        $this->makeSlot($station, ['connector_type' => 'CCS2', 'power_type' => 'DC']);
+        $this->makeSlot($station, ['connector_type' => 'Type2']);
+
+        $response = $this->getJson('/api/stations');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('0.has_dc_connector', true)
+            ->assertJsonPath('0.has_ac_connector', true);
+    }
+
+    public function test_index_flags_station_with_no_slots_as_neither_connector_type(): void
+    {
+        $this->makeStation(null, ['name' => 'No Slots']);
+
+        $response = $this->getJson('/api/stations');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('0.has_dc_connector', false)
+            ->assertJsonPath('0.has_ac_connector', false);
+    }
+
+    public function test_search_suggestions_matches_station_name_partially_and_includes_township(): void
+    {
+        $this->makeStation(null, ['name' => 'Mandalay Hub', 'township' => 'Mandalay']);
+
+        $response = $this->getJson('/api/stations/search-suggestions?q=Hub');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('stations'));
+        $this->assertSame('Mandalay Hub', $response->json('stations.0.name'));
+        $this->assertSame('Mandalay', $response->json('stations.0.township'));
+    }
+
+    public function test_search_suggestions_matches_township_partially_and_deduplicates(): void
+    {
+        $this->makeStation(null, ['name' => 'Yangon Central', 'township' => 'Yangon']);
+        $this->makeStation(null, ['name' => 'Yangon East', 'township' => 'Yangon']);
+
+        $response = $this->getJson('/api/stations/search-suggestions?q=Yang');
+
+        $response->assertStatus(200);
+        $this->assertSame(['Yangon'], $response->json('locations'));
+    }
+
+    public function test_search_suggestions_single_character_returns_both_groups(): void
+    {
+        $this->makeStation(null, ['name' => 'Mandalay Hub', 'township' => 'Mandalay']);
+
+        $response = $this->getJson('/api/stations/search-suggestions?q=m');
+
+        $response->assertStatus(200);
+        $this->assertNotEmpty($response->json('stations'));
+        $this->assertNotEmpty($response->json('locations'));
+    }
+
+    public function test_search_suggestions_never_includes_pending_or_rejected_stations(): void
+    {
+        $this->makeStation(null, ['name' => 'Pending Hub', 'township' => 'Pendingville', 'verification_status' => 'pending']);
+        $this->makeStation(null, ['name' => 'Rejected Hub', 'township' => 'Rejectville', 'verification_status' => 'rejected']);
+
+        $response = $this->getJson('/api/stations/search-suggestions?q=Hub');
+        $response->assertStatus(200);
+        $this->assertCount(0, $response->json('stations'));
+
+        $response = $this->getJson('/api/stations/search-suggestions?q=ville');
+        $response->assertStatus(200);
+        $this->assertCount(0, $response->json('locations'));
+    }
+
+    public function test_search_suggestions_with_empty_or_missing_query_returns_empty_arrays(): void
+    {
+        $this->makeStation(null, ['name' => 'Mandalay Hub', 'township' => 'Mandalay']);
+
+        $this->getJson('/api/stations/search-suggestions')
+            ->assertStatus(200)
+            ->assertExactJson(['stations' => [], 'locations' => []]);
+
+        $this->getJson('/api/stations/search-suggestions?q=')
+            ->assertStatus(200)
+            ->assertExactJson(['stations' => [], 'locations' => []]);
+
+        $this->getJson('/api/stations/search-suggestions?q=%20%20')
+            ->assertStatus(200)
+            ->assertExactJson(['stations' => [], 'locations' => []]);
+    }
+
+    public function test_search_suggestions_enforces_a_limit_of_five_per_group(): void
+    {
+        foreach (range(1, 7) as $i) {
+            $this->makeStation(null, [
+                'name' => "Search Station {$i}",
+                'township' => "Search Township {$i}",
+            ]);
+        }
+
+        $response = $this->getJson('/api/stations/search-suggestions?q=Search');
+
+        $response->assertStatus(200);
+        $this->assertCount(5, $response->json('stations'));
+        $this->assertCount(5, $response->json('locations'));
+    }
+
+    public function test_search_suggestions_requires_no_authentication(): void
+    {
+        $this->makeStation(null, ['name' => 'Mandalay Hub', 'township' => 'Mandalay']);
+
+        $this->getJson('/api/stations/search-suggestions?q=Mandalay')
+            ->assertStatus(200);
+    }
 }

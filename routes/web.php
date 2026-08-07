@@ -58,6 +58,6 @@ Route::middleware('auth')->group(function () {
     })->name('notifications.index');
 
     Route::get('/profile', function () {
-        return view('coming-soon', ['title' => 'Profile', 'icon' => 'person']);
+        return view('profile.index');
     })->name('profile');
 });

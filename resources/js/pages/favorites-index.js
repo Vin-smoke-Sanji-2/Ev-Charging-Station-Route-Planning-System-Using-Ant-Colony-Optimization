@@ -10,11 +10,11 @@ function favoriteCard(favorite) {
                     <h5 class="card-title mb-1">${station.name}</h5>
                     <p class="text-muted mb-1">${station.township ?? ''}</p>
                     <p class="text-muted small mb-2">${station.address ?? ''}</p>
-                    <div class="d-flex gap-2">
-                        <a href="/stations/${station.id}" class="btn btn-sm btn-outline-primary">View Details</a>
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-favorite-btn"
-                                data-station-id="${station.id}">
-                            <i class="bi bi-heartbreak"></i> Remove
+                    <div class="d-flex gap-2 align-items-center">
+                        <a href="/stations/${station.id}" class="btn btn-sm btn-secondary">View Details</a>
+                        <button type="button" class="btn btn-icon-circle btn-icon-circle--favorite remove-favorite-btn"
+                                data-station-id="${station.id}" aria-label="Remove from favorites">
+                            <i class="bi bi-heart-fill"></i>
                         </button>
                     </div>
                 </div>

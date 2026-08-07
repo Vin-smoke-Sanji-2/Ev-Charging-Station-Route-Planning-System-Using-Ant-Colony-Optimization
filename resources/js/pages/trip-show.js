@@ -1,19 +1,7 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { apiFetch } from '../api.js';
-
-// Vite bundles Leaflet's default marker images under hashed filenames,
-// which breaks Leaflet's built-in relative-path lookup. Point it at the
-// bundled URLs explicitly.
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: markerIcon2x,
-    iconUrl: markerIcon,
-    shadowUrl: markerShadow,
-});
+import { attachNavigate } from '../navigate.js';
 
 function formatNumber(value, unit) {
     return value === null || value === undefined ? '—' : `${Number(value).toLocaleString()} ${unit}`;
@@ -24,9 +12,12 @@ function formatCurrency(value) {
 }
 
 function statusBadgeClass(status) {
+    // "active" is the one reassignment here - was Bootstrap's plain green
+    // .bg-success, now gold accent. planned/completed/cancelled keep their
+    // original Bootstrap colors (out of scope for this pass).
     return {
         planned: 'bg-secondary',
-        active: 'bg-success',
+        active: 'bg-accent',
         completed: 'bg-primary',
         cancelled: 'bg-danger',
     }[status] || 'bg-secondary';
@@ -73,8 +64,13 @@ function renderMap(originNode, destinationNode, stops) {
 
     // Real route geometry isn't available until the ACO engine is wired up
     // (see TripController::planRoute) - draw a straight dashed line between
-    // the known points as a placeholder for the planned path.
-    L.polyline(points, { color: '#16a34a', weight: 3, dashArray: '6 8' }).addTo(map);
+    // the known points as a placeholder for the planned path. Was the old
+    // brand green (#16a34a) - now the new secondary navy; this line is a
+    // different feature from the Dashboard's map markers, so it's not
+    // covered by that one deliberate green exception.
+    L.polyline(points, { color: '#2E3A59', weight: 3, dashArray: '6 8' }).addTo(map);
+
+    return map;
 }
 
 function renderStops(stops) {
@@ -148,7 +144,15 @@ async function loadTrip(tripId) {
 
     // The map container must be visible (not display:none) before Leaflet
     // measures it, so this runs after the d-none class is removed above.
-    renderMap(trip.origin_node, trip.destination_node, stops);
+    const map = renderMap(trip.origin_node, trip.destination_node, stops);
+
+    attachNavigate({
+        map,
+        buttonId: 'navigate-btn',
+        statusId: 'navigate-status',
+        target: [Number(trip.destination_node.latitude), Number(trip.destination_node.longitude)],
+        targetLabel: trip.destination_node.name,
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {

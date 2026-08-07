@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
@@ -94,5 +95,35 @@ class AuthController extends Controller
         $user->update(['password' => Hash::make($data['password'])]);
 
         return response()->json(['message' => 'Password updated']);
+    }
+
+    public function uploadAvatar(Request $request)
+    {
+        $data = $request->validate([
+            'avatar' => 'required|file|mimes:jpg,jpeg,png,webp|max:5120',
+        ]);
+
+        $user = $request->user();
+
+        if ($user->avatar_path) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
+
+        $path = $data['avatar']->store('avatars', 'public');
+        $user->update(['avatar_path' => $path]);
+
+        return response()->json($user->fresh());
+    }
+
+    public function deleteAvatar(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->avatar_path) {
+            Storage::disk('public')->delete($user->avatar_path);
+            $user->update(['avatar_path' => null]);
+        }
+
+        return response()->json($user->fresh());
     }
 }

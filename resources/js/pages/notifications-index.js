@@ -27,20 +27,21 @@ function notificationItem(notification) {
     }
 
     return `
-        <li class="list-group-item list-group-item-light border-start border-4 border-primary"
+        <li class="list-group-item list-group-item-light border-start border-4"
+            style="border-left-color: var(--color-primary) !important;"
             data-notification-id="${notification.id}">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="text-muted small text-uppercase d-flex align-items-center gap-2">
-                        <span class="badge rounded-pill bg-primary">&nbsp;</span> ${notification.type}
+                        <span class="badge rounded-pill" style="background-color: var(--color-primary);">&nbsp;</span> ${notification.type}
                     </div>
                     <div class="fw-semibold">${notification.message}</div>
                 </div>
                 <div class="text-end">
                     <div class="text-muted small mb-1">${formatDate(notification.created_at)}</div>
-                    <button type="button" class="btn btn-sm btn-outline-primary mark-read-btn"
-                            data-id="${notification.id}">
-                        Mark as read
+                    <button type="button" class="btn btn-icon-circle btn-icon-circle--accent mark-read-btn"
+                            data-id="${notification.id}" aria-label="Mark as read">
+                        <i class="bi bi-check-lg"></i>
                     </button>
                 </div>
             </div>

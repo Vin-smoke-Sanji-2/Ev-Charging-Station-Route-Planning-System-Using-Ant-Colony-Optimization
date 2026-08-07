@@ -12,9 +12,9 @@
             <h2 class="mb-1">My EVs</h2>
             <p class="text-muted mb-0">Manage the vehicles saved to your account.</p>
         </div>
-        <button type="button" class="btn btn-primary" id="add-vehicle-btn"
+        <button type="button" class="btn btn-primary d-flex align-items-center gap-2" id="add-vehicle-btn"
                 data-bs-toggle="modal" data-bs-target="#vehicleModal">
-            <i class="bi bi-plus-lg"></i> Add Vehicle
+            <span class="btn-icon-badge"><i class="bi bi-plus-lg"></i></span> Add Vehicle
         </button>
     </div>
 
@@ -64,7 +64,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-neutral" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary" id="vehicle-form-submit">Save Vehicle</button>
                     </div>
                 </form>

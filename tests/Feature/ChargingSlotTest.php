@@ -30,6 +30,7 @@ class ChargingSlotTest extends TestCase
         $response = $this->actingAs($owner)->postJson("/api/stations/{$station->id}/slots", [
             'slot_code' => 'A1',
             'connector_type' => 'CCS2',
+            'power_type' => 'DC',
             'power_kw' => 50,
         ]);
 
@@ -59,8 +60,67 @@ class ChargingSlotTest extends TestCase
         $this->actingAs($admin)->postJson("/api/stations/{$station->id}/slots", [
             'slot_code' => 'A1',
             'connector_type' => 'CCS2',
+            'power_type' => 'DC',
             'power_kw' => 50,
         ])->assertStatus(201);
+    }
+
+    public function test_creating_a_slot_without_power_type_is_rejected(): void
+    {
+        $owner = $this->makeStationOwner();
+        $station = $this->makeStation($owner);
+
+        $response = $this->actingAs($owner)->postJson("/api/stations/{$station->id}/slots", [
+            'slot_code' => 'A1',
+            'connector_type' => 'CCS2',
+            'power_kw' => 50,
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors('power_type');
+    }
+
+    public function test_creating_a_slot_with_an_invalid_power_type_is_rejected(): void
+    {
+        $owner = $this->makeStationOwner();
+        $station = $this->makeStation($owner);
+
+        $response = $this->actingAs($owner)->postJson("/api/stations/{$station->id}/slots", [
+            'slot_code' => 'A1',
+            'connector_type' => 'CCS2',
+            'power_type' => 'ac',
+            'power_kw' => 50,
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors('power_type');
+    }
+
+    public function test_creating_a_slot_with_a_valid_power_type_is_persisted(): void
+    {
+        $owner = $this->makeStationOwner();
+        $station = $this->makeStation($owner);
+
+        $this->actingAs($owner)->postJson("/api/stations/{$station->id}/slots", [
+            'slot_code' => 'A1',
+            'connector_type' => 'Type2',
+            'power_type' => 'AC',
+            'power_kw' => 22,
+        ])->assertStatus(201)->assertJsonPath('power_type', 'AC');
+
+        $this->assertDatabaseHas('charging_slots', [
+            'station_id' => $station->id,
+            'slot_code' => 'A1',
+            'power_type' => 'AC',
+        ]);
+
+        $owner2 = $this->makeStationOwner();
+        $station2 = $this->makeStation($owner2);
+
+        $this->actingAs($owner2)->postJson("/api/stations/{$station2->id}/slots", [
+            'slot_code' => 'A1',
+            'connector_type' => 'CCS2',
+            'power_type' => 'DC',
+            'power_kw' => 60,
+        ])->assertStatus(201)->assertJsonPath('power_type', 'DC');
     }
 
     public function test_station_owner_can_update_own_slot(): void

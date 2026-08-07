@@ -1,13 +1,15 @@
 import { apiFetch } from '../api.js';
 
-// Same status -> color mapping as trip-show.js's statusBadgeClass().
+// "planned" is a deliberate departure from trip-show.js's statusBadgeClass()
+// here specifically - gold accent (same token as "active"), not gray,
+// per an explicit request to make it stand out more on this page's table.
 function statusBadgeClass(status) {
     return {
-        planned: 'bg-secondary',
-        active: 'bg-success',
+        planned: 'bg-accent',
+        active: 'bg-accent',
         completed: 'bg-primary',
         cancelled: 'bg-danger',
-    }[status] || 'bg-secondary';
+    }[status] || 'bg-accent';
 }
 
 function formatDate(iso) {
@@ -37,10 +39,10 @@ function tripRow(trip) {
             <td>${formatDate(trip.requested_at)}</td>
             <td>${origin} &rarr; ${destination}</td>
             <td>${vehicleLabel}</td>
-            <td><span class="badge ${statusBadgeClass(status)}">${status}</span></td>
+            <td><span class="badge badge-status ${statusBadgeClass(status)}">${status}</span></td>
             <td>${distance !== null && distance !== undefined ? `${distance} km` : '—'}</td>
             <td class="text-end">
-                <a href="/trips/${trip.id}" class="btn btn-sm btn-outline-primary">View</a>
+                <a href="/trips/${trip.id}" class="btn btn-sm btn-secondary">View</a>
             </td>
         </tr>
     `;

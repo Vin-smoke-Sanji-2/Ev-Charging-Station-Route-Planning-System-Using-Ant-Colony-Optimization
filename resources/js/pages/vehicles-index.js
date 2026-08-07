@@ -34,17 +34,18 @@ function vehicleCard(vehicle) {
                             <p class="text-muted mb-0">${vehicle.plate_no || 'No plate number set'}</p>
                         </div>
                     </div>
-                    <div class="d-flex gap-2 mt-3">
-                        <button type="button" class="btn btn-sm btn-outline-primary edit-vehicle-btn"
+                    <div class="d-flex gap-3 mt-3">
+                        <button type="button" class="btn btn-icon-circle btn-icon-circle--secondary edit-vehicle-btn"
                                 data-id="${vehicle.id}"
                                 data-ev-model-id="${vehicle.ev_model_id}"
                                 data-plate-no="${vehicle.plate_no ?? ''}"
-                                data-is-default="${vehicle.is_default ? '1' : '0'}">
-                            <i class="bi bi-pencil"></i> Edit
+                                data-is-default="${vehicle.is_default ? '1' : '0'}"
+                                aria-label="Edit vehicle">
+                            <i class="bi bi-pencil"></i>
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger delete-vehicle-btn"
-                                data-id="${vehicle.id}">
-                            <i class="bi bi-trash"></i> Delete
+                        <button type="button" class="btn btn-icon-circle btn-icon-circle--danger delete-vehicle-btn"
+                                data-id="${vehicle.id}" aria-label="Delete vehicle">
+                            <i class="bi bi-trash"></i>
                         </button>
                     </div>
                 </div>

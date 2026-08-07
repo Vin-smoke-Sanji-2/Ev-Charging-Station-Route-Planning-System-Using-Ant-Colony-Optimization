@@ -72,6 +72,7 @@ trait CreatesTestData
             'station_id' => $station->id,
             'slot_code' => 'A'.random_int(1000, 999999),
             'connector_type' => 'CCS2',
+            'power_type' => 'AC',
             'power_kw' => 50,
             'status' => 'available',
         ], $attrs));

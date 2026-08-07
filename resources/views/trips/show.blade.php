@@ -61,9 +61,16 @@
 
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body p-0">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 pb-2">
+                        <span class="text-muted small">Route map</span>
+                        <button type="button" class="btn btn-sm btn-secondary" id="navigate-btn">
+                            <i class="bi bi-signpost-split"></i> Navigate
+                        </button>
+                    </div>
                     <div id="trip-map"></div>
                 </div>
             </div>
+            <div id="navigate-status" class="small mb-3 d-none"></div>
 
             <div class="card border-0 shadow-sm">
                 <div class="card-body">

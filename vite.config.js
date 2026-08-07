@@ -6,6 +6,7 @@ export default defineConfig({
         laravel({
             input: [
                 'resources/js/app.js',
+                'resources/js/pages/dashboard.js',
                 'resources/js/pages/login.js',
                 'resources/js/pages/register.js',
                 'resources/js/pages/plan-trip.js',
@@ -16,6 +17,7 @@ export default defineConfig({
                 'resources/js/pages/stations-show.js',
                 'resources/js/pages/favorites-index.js',
                 'resources/js/pages/notifications-index.js',
+                'resources/js/pages/profile-index.js',
             ],
             refresh: true,
         }),

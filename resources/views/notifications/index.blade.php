@@ -12,7 +12,7 @@
             <h2 class="mb-1">Notifications</h2>
             <p class="text-muted mb-0">Updates about your trips and account.</p>
         </div>
-        <button type="button" class="btn btn-outline-primary" id="mark-all-read-btn" disabled>
+        <button type="button" class="btn btn-primary" id="mark-all-read-btn" disabled>
             <i class="bi bi-check2-all"></i> Mark all as read
         </button>
     </div>

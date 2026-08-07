@@ -10,6 +10,7 @@ class ChargingSlot extends Model
         'station_id',
         'slot_code',
         'connector_type',
+        'power_type',
         'power_kw',
         'status',
     ];

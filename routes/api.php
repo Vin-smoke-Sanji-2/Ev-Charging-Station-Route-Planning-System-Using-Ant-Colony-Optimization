@@ -27,6 +27,7 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::get('/ev-models', [EvModelController::class, 'index']);
 
 Route::get('/stations', [ChargingStationController::class, 'index']);
+Route::get('/stations/search-suggestions', [ChargingStationController::class, 'searchSuggestions']);
 Route::get('/stations/{station}', [ChargingStationController::class, 'show']);
 Route::get('/stations/{station}/slots', [ChargingSlotController::class, 'index']);
 Route::get('/stations/{station}/reviews', [ReviewController::class, 'index']);
@@ -45,6 +46,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
     Route::put('/auth/password', [AuthController::class, 'changePassword']);
+    Route::post('/auth/avatar', [AuthController::class, 'uploadAvatar']);
+    Route::delete('/auth/avatar', [AuthController::class, 'deleteAvatar']);
 
     Route::apiResource('vehicles', UserVehicleController::class)->except(['index', 'store'])->parameters(['vehicles' => 'vehicle']);
     Route::get('/vehicles', [UserVehicleController::class, 'index']);

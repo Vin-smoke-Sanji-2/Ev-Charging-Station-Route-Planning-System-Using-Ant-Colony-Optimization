@@ -1,4 +1,26 @@
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { apiFetch } from '../api.js';
+import { attachNavigate } from '../navigate.js';
+
+function renderStationMap(station) {
+    const latLng = [Number(station.latitude), Number(station.longitude)];
+
+    // Settle the map's view before adding the tile layer - same reason as
+    // trip-show.js's renderMap(): an unset view followed by an animated
+    // move thrashes through every intermediate tile grid.
+    const map = L.map('station-map');
+    map.setView(latLng, 15, { animate: false });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+    }).addTo(map);
+
+    L.marker(latLng).addTo(map).bindPopup(station.name);
+
+    return map;
+}
 
 function clearErrors(form, errorBox) {
     errorBox.classList.add('d-none');
@@ -125,8 +147,8 @@ function renderFavoriteButton(favorited) {
     btn.dataset.favorited = favorited ? '1' : '0';
     icon.className = favorited ? 'bi bi-heart-fill' : 'bi bi-heart';
     label.textContent = favorited ? 'Favorited' : 'Favorite';
-    btn.classList.toggle('btn-danger', favorited);
-    btn.classList.toggle('btn-outline-danger', !favorited);
+    btn.classList.toggle('btn-icon-circle--favorite', favorited);
+    btn.classList.toggle('btn-icon-circle--muted', !favorited);
 }
 
 async function loadReviewsPage(stationId, url) {
@@ -174,12 +196,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevItem = document.getElementById('reviews-prev-item');
     const nextItem = document.getElementById('reviews-next-item');
 
-    loadStation(stationId).catch(() => {
-        document.getElementById('station-loading').classList.add('d-none');
-        const errorBox = document.getElementById('station-error');
-        errorBox.textContent = 'Something went wrong loading this station.';
-        errorBox.classList.remove('d-none');
-    });
+    // Map + Navigate are set up only from this first load, not from the
+    // loadStation() re-fetch after submitting a review below - calling
+    // L.map() a second time on the same container throws ("Map container
+    // is already initialized").
+    loadStation(stationId)
+        .then((station) => {
+            if (!station) return;
+
+            const map = renderStationMap(station);
+
+            attachNavigate({
+                map,
+                buttonId: 'navigate-btn',
+                statusId: 'navigate-status',
+                target: [Number(station.latitude), Number(station.longitude)],
+                targetLabel: station.name,
+            });
+        })
+        .catch(() => {
+            document.getElementById('station-loading').classList.add('d-none');
+            const errorBox = document.getElementById('station-error');
+            errorBox.textContent = 'Something went wrong loading this station.';
+            errorBox.classList.remove('d-none');
+        });
 
     isFavorited(stationId).then(renderFavoriteButton);
 

@@ -21,6 +21,7 @@ class ChargingSlotController extends Controller
         $data = $request->validate([
             'slot_code' => 'required|string|max:50',
             'connector_type' => 'required|string|max:50',
+            'power_type' => 'required|in:AC,DC',
             'power_kw' => 'required|numeric|min:0',
             'status' => 'sometimes|in:available,occupied,maintenance',
         ]);
@@ -40,6 +41,7 @@ class ChargingSlotController extends Controller
 
         $data = $request->validate([
             'connector_type' => 'sometimes|string|max:50',
+            'power_type' => 'sometimes|in:AC,DC',
             'power_kw' => 'sometimes|numeric|min:0',
             'status' => 'sometimes|in:available,occupied,maintenance',
         ]);

@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'EV Route Planner')</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/js/app.js'])
     @stack('head')
 </head>
@@ -14,15 +17,15 @@
                 <i class="bi bi-ev-station-fill fs-4"></i> EV Route Planner
             </a>
 
-            <button class="btn btn-outline-secondary d-lg-none" type="button"
+            <button class="btn btn-accent d-lg-none" type="button"
                     data-bs-toggle="collapse" data-bs-target="#appSidebar" aria-controls="appSidebar">
                 <i class="bi bi-list"></i>
             </button>
 
             <div class="dropdown ms-auto">
-                <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1"
-                        type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-person-circle"></i> {{ auth()->user()->name }}
+                <button class="btn navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <span class="navbar-profile-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
+                    <span class="d-none d-md-inline navbar-profile-name">{{ auth()->user()->name }}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="{{ route('profile') }}">Profile</a></li>
