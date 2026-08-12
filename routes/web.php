@@ -128,4 +128,14 @@ Route::middleware('auth')->group(function () {
             return view('station-owner.stations-show', ['stationId' => $station]);
         })->name('station-owner.stations.show');
     });
+
+    // Admin-only pages, same portal-redirect protection as the two groups
+    // above. Part 1 of the Admin portal - scaffolding + Overview only, see
+    // CLAUDE.md. Users/Stations/EV Models/Road Graph land in their own
+    // follow-up prompts, each adding its own route + sidebar entry.
+    Route::middleware('portal:admin')->group(function () {
+        Route::get('/admin/overview', function () {
+            return view('admin.overview');
+        })->name('admin.overview');
+    });
 });

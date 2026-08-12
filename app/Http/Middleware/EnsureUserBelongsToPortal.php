@@ -40,13 +40,13 @@ class EnsureUserBelongsToPortal
         if ($user && ! in_array($user->role, $roles, true)) {
             $target = $user->landingPage();
 
-            // Defensive only - prevents an infinite redirect loop for a
-            // role with no real portal of its own yet (e.g. admin, see
-            // CLAUDE.md's Next steps) whose landingPage() falls back to
-            // /dashboard, which itself sits behind this same middleware.
-            // Real ev_owner/station_owner accounts never hit this branch,
-            // since both have a real landing page outside every page
-            // they'd ever be redirected away from.
+            // Defensive only - prevents an infinite redirect loop for any
+            // future role with no real portal of its own (landingPage()
+            // would fall back to /dashboard, which itself sits behind this
+            // same middleware). ev_owner/station_owner/admin all have a
+            // real landing page outside every page they'd ever be
+            // redirected away from, so none of them can ever hit this
+            // branch today.
             if ('/'.ltrim($target, '/') !== '/'.ltrim($request->path(), '/')) {
                 return redirect($target);
             }

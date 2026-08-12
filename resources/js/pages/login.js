@@ -7,6 +7,7 @@ import { apiFetch } from '../api.js';
 const ROLE_LANDING_PAGES = {
     ev_owner: '/dashboard',
     station_owner: '/station-owner/overview',
+    admin: '/admin/overview',
 };
 
 function clearErrors(form, errorBox) {

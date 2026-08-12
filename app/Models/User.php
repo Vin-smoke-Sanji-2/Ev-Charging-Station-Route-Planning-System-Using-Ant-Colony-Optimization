@@ -97,6 +97,7 @@ class User extends Authenticatable
     public const ROLE_LANDING_PAGES = [
         'ev_owner' => '/dashboard',
         'station_owner' => '/station-owner/overview',
+        'admin' => '/admin/overview',
     ];
 
     public function landingPage(): string

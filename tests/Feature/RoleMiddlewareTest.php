@@ -94,14 +94,36 @@ class RoleMiddlewareTest extends TestCase
     }
 
     /**
-     * No admin portal exists yet, so this asserts against landingPage()'s
-     * own current fallback rather than a hardcoded path - stays correct
-     * automatically once a real admin landing page is added.
+     * Asserts against landingPage()'s own output rather than a hardcoded
+     * path - this test was originally written before a real admin portal
+     * existed (when landingPage() fell back to /dashboard for 'admin'),
+     * deliberately dynamic so it would keep passing, unchanged, the moment
+     * a real admin landing page got added - which is exactly what
+     * happened once the Admin portal's Overview page landed.
      */
-    public function test_admin_is_redirected_from_home_to_the_current_landing_page_fallback(): void
+    public function test_admin_is_redirected_from_home_to_their_own_overview(): void
     {
         $admin = $this->makeAdmin();
 
         $this->actingAs($admin)->get('/')->assertRedirect($admin->landingPage());
+        $this->assertSame('/admin/overview', $admin->landingPage());
+    }
+
+    public function test_non_admin_is_redirected_from_admin_overview_to_their_own_landing_page(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+        $stationOwner = $this->makeStationOwner();
+
+        $this->actingAs($evOwner)->get('/admin/overview')->assertRedirect('/dashboard');
+        $this->actingAs($stationOwner)->get('/admin/overview')->assertRedirect('/station-owner/overview');
+    }
+
+    public function test_admin_can_load_the_admin_overview_page(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->get('/admin/overview')
+            ->assertStatus(200)
+            ->assertViewIs('admin.overview');
     }
 }

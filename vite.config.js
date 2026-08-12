@@ -23,6 +23,7 @@ export default defineConfig({
                 'resources/js/pages/station-owner-overview.js',
                 'resources/js/pages/station-owner-stations-index.js',
                 'resources/js/pages/station-owner-stations-show.js',
+                'resources/js/pages/admin-overview.js',
             ],
             refresh: true,
         }),
