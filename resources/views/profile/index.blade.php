@@ -1,8 +1,10 @@
 {{-- Backend logic (AuthController::updateProfile/changePassword/avatar) is
      genuinely role-agnostic already - only the surrounding chrome needs to
      change per role, so this reuses the identical form/JS under whichever
-     layout matches the current user, rather than duplicating the page. --}}
-@extends(auth()->user()->isStationOwner() ? 'layouts.station-owner' : 'layouts.app')
+     layout matches the current user, rather than duplicating the page.
+     User::layoutFor() covers every role (including admin) - see its doc
+     comment for why this used to be a two-way isStationOwner() check. --}}
+@extends(auth()->user()->layoutFor())
 
 @section('title', 'Profile - EV Route Planner')
 

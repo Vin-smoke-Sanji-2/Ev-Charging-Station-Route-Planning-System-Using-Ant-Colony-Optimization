@@ -105,6 +105,27 @@ class User extends Authenticatable
         return self::ROLE_LANDING_PAGES[$this->role] ?? '/dashboard';
     }
 
+    /**
+     * Which Blade layout a shared, role-agnostic-content page (Profile,
+     * the coming-soon placeholder) should render under for this user.
+     * Exists because both of those views used to branch with a two-way
+     * isStationOwner() ? ... : 'layouts.app' check - correct back when
+     * only two portals existed, but silently wrong for admin once a
+     * third landed (fell into the "else" and got the EV owner's layout).
+     * Centralizing it here means any future shared page - and any future
+     * role - only ever needs one call to this method, not its own
+     * hand-rolled branch that can develop the same gap again.
+     */
+    public const ROLE_LAYOUTS = [
+        'station_owner' => 'layouts.station-owner',
+        'admin' => 'layouts.admin',
+    ];
+
+    public function layoutFor(): string
+    {
+        return self::ROLE_LAYOUTS[$this->role] ?? 'layouts.app';
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';

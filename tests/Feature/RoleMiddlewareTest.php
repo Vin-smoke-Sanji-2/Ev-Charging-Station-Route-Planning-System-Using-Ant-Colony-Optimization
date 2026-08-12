@@ -126,4 +126,36 @@ class RoleMiddlewareTest extends TestCase
             ->assertStatus(200)
             ->assertViewIs('admin.overview');
     }
+
+    /**
+     * /profile and the coming-soon placeholder both pick their layout via
+     * User::layoutFor() (see its doc comment) instead of a hand-rolled
+     * per-page branch - this used to be a two-way isStationOwner() check
+     * on both views, which silently fell through to the EV owner's layout
+     * for admin once the Admin portal existed. Asserted via rendered
+     * content (the admin sidebar's "Overview" nav item, which only
+     * layouts.admin renders) rather than assertViewIs(), since /profile
+     * always renders the same 'profile.index' view regardless of role -
+     * the layout is a @extends inside that view, not a separate view name.
+     */
+    public function test_admin_hitting_profile_gets_the_admin_layout_not_the_ev_owner_layout(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $response = $this->actingAs($admin)->get('/profile');
+
+        $response->assertStatus(200)->assertViewIs('profile.index');
+        $response->assertSee(route('admin.overview'), false);
+        $response->assertDontSee('Plan Trip');
+    }
+
+    public function test_station_owner_hitting_profile_still_gets_the_station_owner_layout(): void
+    {
+        $stationOwner = $this->makeStationOwner();
+
+        $response = $this->actingAs($stationOwner)->get('/profile');
+
+        $response->assertStatus(200)->assertViewIs('profile.index');
+        $response->assertSee(route('station-owner.overview'), false);
+    }
 }
