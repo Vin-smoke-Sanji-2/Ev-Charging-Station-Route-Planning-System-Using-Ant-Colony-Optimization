@@ -13,6 +13,11 @@ class RoadNode extends Model
         'type',
     ];
 
+    public function chargingStations()
+    {
+        return $this->hasMany(ChargingStation::class, 'road_node_id');
+    }
+
     public function outgoingEdges()
     {
         return $this->hasMany(RoadEdge::class, 'from_node_id');

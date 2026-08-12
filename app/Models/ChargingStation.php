@@ -8,6 +8,7 @@ class ChargingStation extends Model
 {
     protected $fillable = [
         'owner_user_id',
+        'road_node_id',
         'name',
         'latitude',
         'longitude',
@@ -22,6 +23,11 @@ class ChargingStation extends Model
     public function owner()
     {
         return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    public function roadNode()
+    {
+        return $this->belongsTo(RoadNode::class, 'road_node_id');
     }
 
     public function slots()

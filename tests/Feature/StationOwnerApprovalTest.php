@@ -120,11 +120,16 @@ class StationOwnerApprovalTest extends TestCase
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
             'role' => 'station_owner',
+            'station' => $this->stationPayload(),
         ]);
         $registerResponse->assertStatus(201)->assertJsonPath('status', 'pending');
         $owner = User::find($registerResponse->json('id'));
 
-        // Pending: blocked from creating a station.
+        // Pending: blocked from creating a SECOND station (their first,
+        // from registration itself, was already created above regardless
+        // of pending status - registration itself is exempt from this
+        // gate, since without a first station there'd be nothing to
+        // eventually approve).
         $this->actingAs($owner)->postJson('/api/stations', $this->stationPayload())
             ->assertStatus(403)
             ->assertJson(['message' => 'Your station owner account is pending admin approval.']);

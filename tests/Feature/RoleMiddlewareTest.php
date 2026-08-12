@@ -50,4 +50,58 @@ class RoleMiddlewareTest extends TestCase
             'longitude' => 96.15,
         ])->assertStatus(201);
     }
+
+    /**
+     * Role-aware "/" redirect (routes/web.php) - an already-logged-in user
+     * of any role is bounced straight to their own portal instead of the
+     * marketing home page. Reuses User::landingPage(), the same mapping
+     * EnsureUserBelongsToPortal redirects with, so these tests assert
+     * against real routes/that method's own output rather than a second,
+     * separately-hardcoded expectation.
+     */
+    public function test_guest_sees_the_home_page(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertStatus(200)->assertViewIs('home');
+    }
+
+    public function test_ev_owner_is_redirected_from_home_to_dashboard(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+
+        $this->actingAs($evOwner)->get('/')->assertRedirect('/dashboard');
+    }
+
+    public function test_active_station_owner_is_redirected_from_home_to_overview(): void
+    {
+        $stationOwner = $this->makeStationOwner();
+
+        $this->actingAs($stationOwner)->get('/')->assertRedirect('/station-owner/overview');
+    }
+
+    /**
+     * landingPage() is deliberately status-agnostic - a pending station
+     * owner still belongs on the page that explains their status, not
+     * back on the marketing page. This must not regress into a status
+     * check being added to the "/" route.
+     */
+    public function test_pending_station_owner_is_also_redirected_from_home_to_overview(): void
+    {
+        $stationOwner = $this->makeStationOwner(['status' => 'pending']);
+
+        $this->actingAs($stationOwner)->get('/')->assertRedirect('/station-owner/overview');
+    }
+
+    /**
+     * No admin portal exists yet, so this asserts against landingPage()'s
+     * own current fallback rather than a hardcoded path - stays correct
+     * automatically once a real admin landing page is added.
+     */
+    public function test_admin_is_redirected_from_home_to_the_current_landing_page_fallback(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->get('/')->assertRedirect($admin->landingPage());
+    }
 }

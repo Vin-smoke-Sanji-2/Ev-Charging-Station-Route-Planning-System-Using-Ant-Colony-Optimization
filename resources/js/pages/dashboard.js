@@ -1,52 +1,20 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { apiFetch } from '../api.js';
-
-const CATEGORIES = {
-    dc247: { color: '#2563eb', label: 'DC fast &middot; 24/7' },
-    dcLimited: { color: '#9333ea', label: 'DC fast &middot; limited hours' },
-    ac247: { color: '#16a34a', label: 'AC only &middot; 24/7' },
-    acLimited: { color: '#f59e0b', label: 'AC only &middot; limited hours' },
-    none: { color: '#6b7280', label: 'No slot data yet' },
-};
+import { MYANMAR_BOUNDS, MYANMAR_MIN_ZOOM, MYANMAR_CENTER, MYANMAR_DEFAULT_ZOOM } from '../map-bounds.js';
+// categoryFor/markerIconFor used to be defined locally here - extracted to
+// a shared module so Station Detail's own persistent map marker (see
+// stations-show.js) uses the exact same categorization/pin styling
+// instead of a slightly different reimplementation. No behavior change
+// here: same CATEGORIES colors/labels, same DC-wins-over-AC rule, same
+// deliberately-still-green AC+24/7 entry.
+import { categoryFor, markerIconFor } from '../station-marker.js';
 
 let map;
 let stations = [];
 let markersById = new Map();
 let searchToken = 0;
 let lastSuggestions = { stations: [], locations: [] };
-
-// DC wins when a station has both connector types - a DC-capable station is
-// still meaningfully "DC fast charging" even if it also happens to have an
-// AC slot. Worth revisiting if that turns out to be the wrong call once
-// there's real usage data on which category owners/EV drivers expect.
-function categoryFor(station) {
-    const is247 = (station.operating_hours || '').toLowerCase().includes('24/7');
-
-    if (station.has_dc_connector) {
-        return is247 ? CATEGORIES.dc247 : CATEGORIES.dcLimited;
-    }
-
-    if (station.has_ac_connector) {
-        return is247 ? CATEGORIES.ac247 : CATEGORIES.acLimited;
-    }
-
-    return CATEGORIES.none;
-}
-
-// Location-pin glyph instead of a plain circle - color is set inline per
-// marker to match its station category (see CATEGORIES above), including
-// the deliberately-still-green AC+24/7 entry (a permanent exception to the
-// rest of this project's green cleanup, not an oversight).
-function markerIconFor(color) {
-    return L.divIcon({
-        className: 'dashboard-marker-pin-wrap',
-        html: `<i class="bi bi-geo-alt-fill dashboard-marker-pin" style="color:${color};"></i>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 26],
-        popupAnchor: [0, -26],
-    });
-}
 
 function popupHtml(station, category) {
     return `
@@ -99,15 +67,22 @@ async function initDashboard() {
     // an interaction limit, dragging/scroll-zoom/double-click-zoom are all
     // still on by default. The default top-left zoom control would
     // otherwise sit directly behind the "Welcome back" overlay.
-    map = L.map('dashboard-map', { zoomControl: false });
+    map = L.map('dashboard-map', {
+        zoomControl: false,
+        maxBounds: MYANMAR_BOUNDS,
+        minZoom: MYANMAR_MIN_ZOOM,
+    });
     L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    // Settle on a sensible Myanmar-centered view immediately, before any
+    // real station data has loaded - fitBounds() below still takes over as
+    // soon as it has points, this is only what's on screen before that.
+    map.setView(MYANMAR_CENTER, MYANMAR_DEFAULT_ZOOM, { animate: false });
 
     const points = stationPoints(stations);
 
     if (points.length > 0) {
         map.fitBounds(points, { padding: [40, 40], animate: false });
-    } else {
-        map.setView([19.7, 96.1], 6, { animate: false });
     }
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

@@ -1,7 +1,8 @@
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { apiFetch } from '../api.js';
 import { attachNavigate } from '../navigate.js';
+import { attachRecalculate } from '../recalculate.js';
+import { renderRouteMap, renderStopListItem } from '../route-map.js';
 
 function formatNumber(value, unit) {
     return value === null || value === undefined ? '—' : `${Number(value).toLocaleString()} ${unit}`;
@@ -12,65 +13,16 @@ function formatCurrency(value) {
 }
 
 function statusBadgeClass(status) {
-    // "active" is the one reassignment here - was Bootstrap's plain green
-    // .bg-success, now gold accent. planned/completed/cancelled keep their
-    // original Bootstrap colors (out of scope for this pass).
+    // "active" was Bootstrap's plain green .bg-success, now gold accent.
+    // "planned" was Bootstrap's plain gray .bg-secondary, now burgundy
+    // (.bg-burgundy) per direct request. completed/cancelled keep their
+    // original Bootstrap colors (out of scope for either pass).
     return {
-        planned: 'bg-secondary',
+        planned: 'bg-burgundy',
         active: 'bg-accent',
         completed: 'bg-primary',
         cancelled: 'bg-danger',
-    }[status] || 'bg-secondary';
-}
-
-function renderMap(originNode, destinationNode, stops) {
-    const originLatLng = [Number(originNode.latitude), Number(originNode.longitude)];
-    const destinationLatLng = [Number(destinationNode.latitude), Number(destinationNode.longitude)];
-    const stopLatLngs = stops
-        .filter((stop) => stop.station)
-        .map((stop) => [Number(stop.station.latitude), Number(stop.station.longitude)]);
-    const points = [originLatLng, ...stopLatLngs, destinationLatLng];
-
-    // The map must settle on its final view BEFORE the tile layer is added.
-    // Previously the tile layer was added right after L.map() with no view
-    // set yet, so it started loading tiles for an undefined/default view;
-    // the later fitBounds() call then animated through several intermediate
-    // zoom levels to reach the real view, firing (and cancelling) a full
-    // grid of OSM tile requests at each step - 800+ requests for one page
-    // load. Computing bounds first and disabling animation means the map
-    // only ever renders tiles for the one final view.
-    const map = L.map('trip-map');
-
-    if (points.length > 1) {
-        map.fitBounds(points, { padding: [30, 30], animate: false });
-    } else {
-        map.setView(points[0], 7, { animate: false });
-    }
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19,
-    }).addTo(map);
-
-    L.marker(originLatLng).addTo(map).bindPopup(`Start: ${originNode.name}`);
-
-    stops.forEach((stop, index) => {
-        if (!stop.station) return;
-        const latLng = [Number(stop.station.latitude), Number(stop.station.longitude)];
-        L.marker(latLng).addTo(map).bindPopup(`Stop ${index + 1}: ${stop.station.name}`);
-    });
-
-    L.marker(destinationLatLng).addTo(map).bindPopup(`Destination: ${destinationNode.name}`);
-
-    // Real route geometry isn't available until the ACO engine is wired up
-    // (see TripController::planRoute) - draw a straight dashed line between
-    // the known points as a placeholder for the planned path. Was the old
-    // brand green (#16a34a) - now the new secondary navy; this line is a
-    // different feature from the Dashboard's map markers, so it's not
-    // covered by that one deliberate green exception.
-    L.polyline(points, { color: '#2E3A59', weight: 3, dashArray: '6 8' }).addTo(map);
-
-    return map;
+    }[status] || 'bg-burgundy';
 }
 
 function renderStops(stops) {
@@ -78,25 +30,33 @@ function renderStops(stops) {
     const empty = document.getElementById('stops-empty');
 
     if (stops.length === 0) {
+        list.innerHTML = '';
         empty.classList.remove('d-none');
         return;
     }
 
-    list.innerHTML = stops.map((stop) => {
-        const station = stop.station;
-        const wait = stop.estimated_wait_min !== null && stop.estimated_wait_min !== undefined
-            ? `~${stop.estimated_wait_min} min wait`
-            : 'wait time unknown';
-        return `
-            <li class="list-group-item d-flex justify-content-between align-items-start">
-                <div>
-                    <div class="fw-semibold">${station ? station.name : 'Unknown station'}</div>
-                    <div class="text-muted small">${station?.township ?? ''}</div>
-                </div>
-                <span class="badge bg-brand rounded-pill">${wait}</span>
-            </li>
-        `;
-    }).join('');
+    // A recalculation can change a route from zero stops to some (or vice
+    // versa) and re-runs this on the same page - the empty state must be
+    // re-hidden here, not just shown once on a page that used to only
+    // render stops a single time.
+    empty.classList.add('d-none');
+    list.innerHTML = stops.map((stop) => renderStopListItem(stop, { showWaitTime: true })).join('');
+}
+
+// Recalculating replaces the route in place (new distance/stops/geometry),
+// so loadTrip() must be safely re-runnable - it re-creates the Leaflet map
+// (guarding against "Map container is already initialized" by removing any
+// prior instance first) and clone-replaces buttons that get listeners
+// attached each run, so those listeners don't pile up across recalculations.
+let currentMap = null;
+
+// Clones a button to strip any listeners from a previous loadTrip() run,
+// returning the fresh element so the caller can attach this run's listener.
+function freshButton(id) {
+    const old = document.getElementById(id);
+    const fresh = old.cloneNode(true);
+    old.replaceWith(fresh);
+    return fresh;
 }
 
 async function loadTrip(tripId) {
@@ -130,7 +90,7 @@ async function loadTrip(tripId) {
 
     const statusBadge = document.getElementById('trip-status');
     statusBadge.textContent = route ? route.status : 'planned';
-    statusBadge.className = `badge fs-6 ${statusBadgeClass(route?.status)}`;
+    statusBadge.className = `badge-btn-match ${statusBadgeClass(route?.status)}`;
 
     document.getElementById('stat-distance').textContent = formatNumber(route?.total_distance_km, 'km');
     document.getElementById('stat-duration').textContent = formatNumber(route?.total_duration_min, 'min');
@@ -142,16 +102,73 @@ async function loadTrip(tripId) {
     loading.classList.add('d-none');
     content.classList.remove('d-none');
 
+    if (currentMap) {
+        currentMap.remove();
+        currentMap = null;
+    }
+
     // The map container must be visible (not display:none) before Leaflet
     // measures it, so this runs after the d-none class is removed above.
-    const map = renderMap(trip.origin_node, trip.destination_node, stops);
+    currentMap = renderRouteMap('trip-map', trip.origin_node, trip.destination_node, stops, trip.route_geometry);
 
     attachNavigate({
-        map,
-        buttonId: 'navigate-btn',
+        map: currentMap,
+        buttonId: freshButton('navigate-btn').id,
         statusId: 'navigate-status',
         target: [Number(trip.destination_node.latitude), Number(trip.destination_node.longitude)],
         targetLabel: trip.destination_node.name,
+        targetNodeId: trip.destination_node.id,
+    });
+
+    setupStartTrip(tripId, route?.status);
+
+    // Only recalculable while a plan exists and hasn't finished - a
+    // completed/cancelled route has nothing left to recalculate. Set this
+    // on the current button before attachRecalculate() clone-replaces it -
+    // cloneNode(true) copies classes along with the element.
+    document.getElementById('recalculate-btn').classList.toggle(
+        'd-none',
+        !(route && (route.status === 'planned' || route.status === 'active')),
+    );
+    attachRecalculate({
+        tripId,
+        defaultBatteryPercent: trip.battery_percent,
+        onSuccess: () => loadTrip(tripId),
+    });
+}
+
+function setupStartTrip(tripId, status) {
+    const startWrap = document.getElementById('start-trip-wrap');
+    const activeBanner = document.getElementById('active-trip-banner');
+    const startBtn = freshButton('start-trip-btn');
+    const startError = document.getElementById('start-trip-error');
+
+    startWrap.classList.add('d-none');
+    activeBanner.classList.add('d-none');
+
+    if (status === 'planned') {
+        startWrap.classList.remove('d-none');
+    } else if (status === 'active') {
+        activeBanner.classList.remove('d-none');
+    }
+    // completed/cancelled: neither shown, matching "leave existing display
+    // behavior as-is" for a completed trip (already handled by summary()).
+
+    startBtn.addEventListener('click', async () => {
+        startBtn.disabled = true;
+        startError.classList.add('d-none');
+
+        const response = await apiFetch(`/api/trips/${tripId}/start`, { method: 'POST' });
+
+        if (response.ok) {
+            window.location.href = '/trips/live';
+            return;
+        }
+
+        const data = await response.json().catch(() => ({}));
+        startError.textContent = data.message || 'Unable to start this trip. Please try again.';
+        startError.classList.remove('d-none');
+        startBtn.disabled = false;
     });
 }
 

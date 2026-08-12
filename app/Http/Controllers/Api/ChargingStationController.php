@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ChargingStation;
+use App\Services\ChargingStationCreator;
 use Illuminate\Http\Request;
 
 class ChargingStationController extends Controller
@@ -124,13 +125,32 @@ class ChargingStationController extends Controller
             'operating_hours' => 'nullable|string|max:100',
         ]);
 
-        $data['owner_user_id'] = $request->user()->id;
-        $data['verification_status'] = 'pending';
-        $data['total_slots'] = 0;
-
-        $station = ChargingStation::create($data);
+        $station = (new ChargingStationCreator)->create($request->user()->id, $data);
 
         return response()->json($station, 201);
+    }
+
+    /**
+     * The requesting station owner's own station(s), unfiltered by
+     * verification_status - unlike index(), which only ever shows
+     * verified stations. A station owner needs to see their own station's
+     * real current state (including 'pending'/'rejected') on both the
+     * Overview page and the My Stations list, which index()'s public/
+     * verified-only scoping would hide. Carries the same
+     * available_slots_count/total_slots_count withCount pair as index(),
+     * added for My Stations' own per-station slot summary - Overview
+     * never read these two fields, so this is a strictly additive change.
+     */
+    public function mine(Request $request)
+    {
+        return response()->json(
+            $request->user()->ownedStations()
+                ->withCount([
+                    'slots as available_slots_count' => fn ($q) => $q->where('status', 'available'),
+                ])
+                ->withCount('slots as total_slots_count')
+                ->get()
+        );
     }
 
     public function update(Request $request, ChargingStation $station)

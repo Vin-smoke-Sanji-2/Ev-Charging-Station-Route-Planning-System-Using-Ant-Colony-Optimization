@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="auth-shell">
-        <div class="auth-card">
+        <div class="auth-card @yield('card-size')">
             @yield('content')
         </div>
     </div>

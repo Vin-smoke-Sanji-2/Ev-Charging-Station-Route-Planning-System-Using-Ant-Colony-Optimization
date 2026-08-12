@@ -11,7 +11,15 @@ class RoadEdge extends Model
         'to_node_id',
         'distance_km',
         'avg_speed_kmh',
+        'geometry',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'geometry' => 'array',
+        ];
+    }
 
     public function fromNode()
     {

@@ -42,7 +42,7 @@
         <aside class="app-sidebar collapse d-lg-block" id="appSidebar">
             <nav class="nav flex-column py-3">
                 @foreach ([
-                    ['route' => 'dashboard', 'icon' => 'speedometer2', 'label' => 'Dashboard'],
+                    ['route' => 'dashboard', 'icon' => 'speedometer2', 'label' => 'Overview'],
                     ['route' => 'trips.plan', 'icon' => 'signpost-split', 'label' => 'Plan Trip'],
                     ['route' => 'trips.live', 'icon' => 'broadcast', 'label' => 'Live Trip'],
                     ['route' => 'stations.index', 'icon' => 'ev-station', 'label' => 'Stations'],

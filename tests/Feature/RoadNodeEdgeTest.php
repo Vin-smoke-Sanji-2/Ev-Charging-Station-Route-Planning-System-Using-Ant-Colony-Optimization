@@ -32,6 +32,39 @@ class RoadNodeEdgeTest extends TestCase
         $this->getJson('/api/road-edges')->assertStatus(200)->assertJsonCount(1);
     }
 
+    public function test_city_suggestions_only_returns_city_type_nodes(): void
+    {
+        $this->makeRoadNode(['name' => 'Yangon', 'type' => 'city']);
+        $this->makeRoadNode(['name' => 'Yangon Central Charge', 'type' => 'station']);
+
+        $response = $this->getJson('/api/road-nodes/city-suggestions?q=Yangon');
+
+        $response->assertStatus(200)->assertJsonCount(1);
+        $response->assertJsonPath('0.name', 'Yangon');
+    }
+
+    public function test_city_suggestions_partial_match_is_case_insensitive(): void
+    {
+        $this->makeRoadNode(['name' => 'Mandalay', 'type' => 'city']);
+        $this->makeRoadNode(['name' => 'Bago', 'type' => 'city']);
+
+        $response = $this->getJson('/api/road-nodes/city-suggestions?q=man');
+
+        $response->assertStatus(200)->assertJsonCount(1);
+        $response->assertJsonPath('0.name', 'Mandalay');
+    }
+
+    public function test_city_suggestions_with_empty_query_returns_all_cities_up_to_limit(): void
+    {
+        $this->makeRoadNode(['name' => 'Yangon', 'type' => 'city']);
+        $this->makeRoadNode(['name' => 'Mandalay', 'type' => 'city']);
+        $this->makeRoadNode(['name' => 'Some Station', 'type' => 'station']);
+
+        $response = $this->getJson('/api/road-nodes/city-suggestions');
+
+        $response->assertStatus(200)->assertJsonCount(2);
+    }
+
     public function test_admin_can_create_a_road_node(): void
     {
         $admin = $this->makeAdmin();

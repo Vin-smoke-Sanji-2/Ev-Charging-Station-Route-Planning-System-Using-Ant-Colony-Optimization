@@ -262,4 +262,80 @@ class ChargingSessionTest extends TestCase
             ->assertStatus(200)
             ->assertJsonCount(2, 'data');
     }
+
+    /**
+     * Coverage gap found during the queue-investigation session (and now
+     * exercised for real by Station Details' new "Start Charging Here"
+     * status check, which calls exactly this query to see whether the
+     * current EV owner already has an active session at this specific
+     * station): index()'s ?station_id= filter and its ev_owner-scoping
+     * had never been tested together. Confirms both narrow correctly at
+     * once - not just the user's own session at a DIFFERENT station, and
+     * not another user's session at the SAME station.
+     */
+    public function test_index_filters_by_station_id_while_still_scoping_to_own_sessions_for_ev_owner(): void
+    {
+        $user = $this->makeUser();
+        $otherUser = $this->makeUser();
+        $stationA = $this->makeStation();
+        $stationB = $this->makeStation();
+
+        $ownSessionAtStationA = $this->makeSession($stationA, $user, ['status' => 'waiting']);
+        $this->makeSession($stationB, $user, ['status' => 'waiting']);
+        $this->makeSession($stationA, $otherUser, ['status' => 'waiting']);
+
+        $response = $this->actingAs($user)->getJson("/api/sessions?station_id={$stationA->id}");
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $ownSessionAtStationA->id);
+    }
+
+    /**
+     * Coverage gap found during the queue-investigation session: index()'s
+     * with(['station', 'slot', 'user', 'vehicle']) stopped one level short
+     * of vehicle.evModel, unlike every other place in this app that loads
+     * a vehicle (UserVehicleController always does ->with('evModel')) -
+     * so a queue UI reading vehicle.ev_model.brand/model would have
+     * silently gotten null. Now fixed to with(['vehicle.evModel']).
+     */
+    public function test_index_includes_vehicle_ev_model_for_sessions_with_a_vehicle(): void
+    {
+        $user = $this->makeUser();
+        $evModel = $this->makeEvModel(['brand' => 'BYD', 'model' => 'Atto 3']);
+        $vehicle = $this->makeVehicle($user, $evModel);
+        $station = $this->makeStation();
+
+        $this->actingAs($user)->postJson("/api/stations/{$station->id}/sessions", [
+            'vehicle_id' => $vehicle->id,
+        ])->assertStatus(201);
+
+        $response = $this->actingAs($user)->getJson('/api/sessions');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.vehicle.ev_model.brand', 'BYD')
+            ->assertJsonPath('data.0.vehicle.ev_model.model', 'Atto 3');
+    }
+
+    /**
+     * Missing test found during the Station Owner investigation: every
+     * other station-owner-scoped resource (station, slot) already has a
+     * "cannot touch another owner's X" test; sessions didn't.
+     */
+    public function test_station_owner_cannot_update_another_owners_session(): void
+    {
+        $owner = $this->makeStationOwner();
+        $intruder = $this->makeStationOwner();
+        $evOwner = $this->makeUser();
+        $station = $this->makeStation($owner);
+        $this->makeSlot($station, ['status' => 'occupied']);
+        $session = $this->makeSession($station, $evOwner, ['status' => 'charging', 'started_at' => now()]);
+
+        $response = $this->actingAs($intruder)->putJson("/api/sessions/{$session->id}", [
+            'status' => 'completed',
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertSame('charging', $session->fresh()->status);
+    }
 }

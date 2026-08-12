@@ -83,6 +83,27 @@ class User extends Authenticatable
         return $this->hasMany(UserNotification::class);
     }
 
+    /**
+     * Where each role's page-level portal actually lives - the PHP-side
+     * mirror of resources/js/pages/login.js's own ROLE_LANDING_PAGES,
+     * used as the single source of truth for every server-side "where
+     * does this role belong" redirect (EnsureUserBelongsToPortal).
+     * This stack has no shared JS/PHP config layer, so a literal single
+     * definition across both isn't possible - kept identical by hand
+     * instead, the same precedent as haversineDistanceKm() existing
+     * separately in both navigate.js and NavigateController. If this
+     * ever changes, update login.js's copy too.
+     */
+    public const ROLE_LANDING_PAGES = [
+        'ev_owner' => '/dashboard',
+        'station_owner' => '/station-owner/overview',
+    ];
+
+    public function landingPage(): string
+    {
+        return self::ROLE_LANDING_PAGES[$this->role] ?? '/dashboard';
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';

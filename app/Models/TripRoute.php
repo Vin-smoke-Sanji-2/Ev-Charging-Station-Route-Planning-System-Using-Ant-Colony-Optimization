@@ -15,7 +15,19 @@ class TripRoute extends Model
         'est_battery_consumption',
         'estimated_cost',
         'status',
+        'edge_path_ids',
+        'started_at',
+        'completed_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'edge_path_ids' => 'array',
+            'started_at' => 'datetime',
+            'completed_at' => 'datetime',
+        ];
+    }
 
     public function tripRequest()
     {

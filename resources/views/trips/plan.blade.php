@@ -25,19 +25,29 @@
                     </select>
                     <div class="invalid-feedback" data-error-for="vehicle_id"></div>
                 </div>
-                <div class="mb-3">
-                    <label for="origin_node_id" class="form-label">Origin</label>
-                    <select class="form-select" id="origin_node_id" name="origin_node_id" required>
-                        <option value="">Loading locations...</option>
-                    </select>
+                <div class="mb-3 position-relative" id="origin-search-wrap">
+                    <label for="origin_search" class="form-label">Origin</label>
+                    <div class="d-flex gap-2">
+                        <input type="text" class="form-control" id="origin_search" autocomplete="off"
+                               placeholder="Start typing a city name...">
+                        <button type="button" class="btn btn-secondary text-nowrap" id="use-my-location-btn">
+                            <i class="bi bi-geo-alt"></i> Use My Location
+                        </button>
+                    </div>
+                    <input type="hidden" id="origin_node_id" name="origin_node_id">
+                    <div class="list-group position-absolute w-100 shadow-sm d-none" id="origin-suggestions" style="z-index: 10; top: 100%;"></div>
                     <div class="invalid-feedback" data-error-for="origin_node_id"></div>
+                    <div class="small mt-1 d-none" id="origin-location-status"></div>
+                    <div class="small text-danger mt-1 d-none" id="origin-hint">Please select a city from the suggestions.</div>
                 </div>
-                <div class="mb-3">
-                    <label for="destination_node_id" class="form-label">Destination</label>
-                    <select class="form-select" id="destination_node_id" name="destination_node_id" required>
-                        <option value="">Loading locations...</option>
-                    </select>
+                <div class="mb-3 position-relative" id="destination-search-wrap">
+                    <label for="destination_search" class="form-label">Destination</label>
+                    <input type="text" class="form-control" id="destination_search" autocomplete="off"
+                           placeholder="Start typing a city name...">
+                    <input type="hidden" id="destination_node_id" name="destination_node_id">
+                    <div class="list-group position-absolute w-100 shadow-sm d-none" id="destination-suggestions" style="z-index: 10; top: 100%;"></div>
                     <div class="invalid-feedback" data-error-for="destination_node_id"></div>
+                    <div class="small text-danger mt-1 d-none" id="destination-hint">Please select a city from the suggestions.</div>
                 </div>
                 <div class="mb-3">
                     <label for="battery_percent" class="form-label">Current battery %</label>

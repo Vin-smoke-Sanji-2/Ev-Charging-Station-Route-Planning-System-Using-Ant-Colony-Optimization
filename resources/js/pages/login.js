@@ -1,5 +1,14 @@
 import { apiFetch } from '../api.js';
 
+// Extensible role -> post-login landing page, not an if/else chain - a
+// future role (e.g. admin, once that portal exists) is one more entry
+// here, not a new branch. Anything not listed (or an unrecognized value)
+// falls back to /dashboard.
+const ROLE_LANDING_PAGES = {
+    ev_owner: '/dashboard',
+    station_owner: '/station-owner/overview',
+};
+
 function clearErrors(form, errorBox) {
     errorBox.classList.add('d-none');
     errorBox.textContent = '';
@@ -40,7 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (response.ok) {
-                window.location.href = '/dashboard';
+                const user = await response.json();
+                window.location.href = ROLE_LANDING_PAGES[user.role] ?? '/dashboard';
                 return;
             }
 

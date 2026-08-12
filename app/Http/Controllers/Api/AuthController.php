@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ChargingStationCreator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
@@ -22,14 +24,46 @@ class AuthController extends Controller
             'role' => 'nullable|in:ev_owner,station_owner',
         ]);
 
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'phone' => $data['phone'] ?? null,
-            'role' => $data['role'] ?? 'ev_owner',
-            'status' => ($data['role'] ?? 'ev_owner') === 'station_owner' ? 'pending' : 'active',
-        ]);
+        $isStationOwner = ($data['role'] ?? 'ev_owner') === 'station_owner';
+
+        // Validated up front, before anything is created - if station data
+        // fails validation, registration must fail as a whole with no
+        // orphaned user, so both validate() calls happen before any
+        // DB::transaction() work starts, not one after the other.
+        $stationData = $isStationOwner ? $request->validate([
+            // Identical rules to ChargingStationController::store() for
+            // every one of these fields - reusing the same nullable/
+            // required split that endpoint already established, not a
+            // separately-invented set for this second entry point.
+            'station.name' => 'required|string|max:255',
+            'station.latitude' => 'required|numeric',
+            'station.longitude' => 'required|numeric',
+            'station.address' => 'nullable|string|max:255',
+            'station.township' => 'nullable|string|max:100',
+            'station.charging_speed' => 'nullable|string|max:100',
+            'station.operating_hours' => 'nullable|string|max:100',
+        ])['station'] : null;
+
+        $user = DB::transaction(function () use ($data, $isStationOwner, $stationData) {
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+                'phone' => $data['phone'] ?? null,
+                'role' => $data['role'] ?? 'ev_owner',
+                'status' => $isStationOwner ? 'pending' : 'active',
+            ]);
+
+            if ($isStationOwner) {
+                // The exact same creation path ChargingStationController::
+                // store() uses (owner_user_id/verification_status/
+                // total_slots/road_node_id all handled identically there),
+                // not a second, separately-maintained way to make a station.
+                (new ChargingStationCreator)->create($user->id, $stationData);
+            }
+
+            return $user;
+        });
 
         Auth::login($user);
         $request->session()->regenerate();

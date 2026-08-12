@@ -13,6 +13,23 @@ class RoadNodeController extends Controller
         return response()->json(RoadNode::orderBy('name')->get());
     }
 
+    public function citySuggestions(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        $query = RoadNode::query()->where('type', 'city');
+
+        if ($q !== '') {
+            $query->where('name', 'like', '%'.$q.'%');
+        }
+
+        $cities = $query->orderBy('name')
+            ->limit(8)
+            ->get(['id', 'name', 'latitude', 'longitude']);
+
+        return response()->json($cities);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

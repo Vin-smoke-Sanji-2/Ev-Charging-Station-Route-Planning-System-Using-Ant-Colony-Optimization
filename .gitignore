@@ -26,3 +26,4 @@ CLAUDE.md
 .claude/ 
 database/seeders/data/stations_seed.php
 database/seeders/data/highway_16_seed.php
+database/seeders/data/road_edges_seed.php

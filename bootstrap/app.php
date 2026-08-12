@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+            'portal' => \App\Http\Middleware\EnsureUserBelongsToPortal::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

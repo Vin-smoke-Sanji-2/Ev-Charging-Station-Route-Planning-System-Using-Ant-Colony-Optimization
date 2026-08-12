@@ -11,7 +11,15 @@ class RouteChargingStop extends Model
         'station_id',
         'sequence_no',
         'estimated_wait_min',
+        'reached_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'reached_at' => 'datetime',
+        ];
+    }
 
     public function tripRoute()
     {

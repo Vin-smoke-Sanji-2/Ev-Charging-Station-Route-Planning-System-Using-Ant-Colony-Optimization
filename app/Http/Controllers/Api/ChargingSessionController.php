@@ -19,7 +19,7 @@ class ChargingSessionController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $query = ChargingSession::query()->with(['station', 'slot', 'user', 'vehicle']);
+        $query = ChargingSession::query()->with(['station', 'slot', 'user', 'vehicle.evModel']);
 
         if ($user->isStationOwner()) {
             $query->whereHas('station', fn ($q) => $q->where('owner_user_id', $user->id));

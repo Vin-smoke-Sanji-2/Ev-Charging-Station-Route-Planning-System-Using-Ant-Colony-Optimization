@@ -31,7 +31,16 @@ class AuthTest extends TestCase
         $this->assertAuthenticated();
     }
 
-    public function test_station_owner_registration_starts_pending(): void
+    /**
+     * Station owner registration now collects the owner's first station in
+     * the same request - not deferred to a later step. Confirms both rows
+     * are created together, the user starts 'pending' (unchanged), the
+     * station starts 'pending' verification, and - the Part 1 fix this
+     * exercises end-to-end - the station is genuinely linked into the road
+     * graph via road_node_id, not left null the way a plain ChargingStation
+     * insert used to.
+     */
+    public function test_station_owner_registration_creates_the_user_and_their_first_station_together(): void
     {
         $response = $this->postJson('/api/auth/register', [
             'name' => 'Bob',
@@ -39,11 +48,88 @@ class AuthTest extends TestCase
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
             'role' => 'station_owner',
+            'station' => [
+                'name' => "Bob's Charging Station",
+                'latitude' => 16.85,
+                'longitude' => 96.20,
+                'address' => '1 Test Ave',
+                'township' => 'Kyauktada',
+                'charging_speed' => 'fast',
+                'operating_hours' => '24/7',
+            ],
         ]);
 
         $response->assertStatus(201)
             ->assertJsonPath('role', 'station_owner')
             ->assertJsonPath('status', 'pending');
+
+        $user = \App\Models\User::where('email', 'bob@example.com')->firstOrFail();
+        $this->assertDatabaseHas('charging_stations', [
+            'name' => "Bob's Charging Station",
+            'owner_user_id' => $user->id,
+            'verification_status' => 'pending',
+        ]);
+
+        $station = \App\Models\ChargingStation::where('owner_user_id', $user->id)->firstOrFail();
+        $this->assertNotNull($station->road_node_id);
+        $this->assertDatabaseHas('road_nodes', [
+            'id' => $station->road_node_id,
+            'type' => 'station',
+            'name' => "Bob's Charging Station",
+        ]);
+    }
+
+    /**
+     * The transactional-safety requirement: if the station half of the
+     * payload fails validation, registration must fail as a whole - no
+     * orphaned user account with no station.
+     */
+    public function test_station_owner_registration_without_station_data_fails_and_creates_nothing(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Orphan',
+            'email' => 'orphan@example.com',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'role' => 'station_owner',
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseMissing('users', ['email' => 'orphan@example.com']);
+    }
+
+    public function test_station_owner_registration_with_incomplete_station_data_fails_and_creates_nothing(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Half Baked',
+            'email' => 'half-baked@example.com',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'role' => 'station_owner',
+            'station' => [
+                // Missing required 'name'/'latitude'/'longitude'.
+                'address' => 'Nowhere Rd',
+            ],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseMissing('users', ['email' => 'half-baked@example.com']);
+        $this->assertDatabaseMissing('charging_stations', ['address' => 'Nowhere Rd']);
+    }
+
+    /** EV owner registration is unaffected - station fields are never required/consulted for it, even if present. */
+    public function test_ev_owner_registration_ignores_any_station_data(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Regular EV Owner',
+            'email' => 'ev-owner-with-noise@example.com',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'station' => ['name' => 'Should be ignored'],
+        ]);
+
+        $response->assertStatus(201)->assertJsonPath('role', 'ev_owner');
+        $this->assertDatabaseMissing('charging_stations', ['name' => 'Should be ignored']);
     }
 
     public function test_register_rejects_duplicate_email(): void

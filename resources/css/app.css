@@ -15,8 +15,14 @@
     --color-accent: #C9A464;
     --color-accent-hover: #B08F52;
     --color-base: #F8F4EC;
-    --color-favorite: #E88A93;
-    --color-favorite-hover: #D9727C;
+    /* Darkened a notch from the original #E88A93/#D9727C (2026-08-09) -
+       the softer tone read as too faint for a small icon-only heart to
+       stand out clearly against a white/tinted panel. Affects every
+       favorited-heart button app-wide (Stations index, Station Detail,
+       Favorites), not just one page - a single shared token, so it
+       stays consistent everywhere it's used. */
+    --color-favorite: #D9636F;
+    --color-favorite-hover: #C14956;
     --color-terracotta: #C1633B;
     --color-terracotta-hover: #A8522F;
     --color-plum: #6B4062;
@@ -142,6 +148,33 @@ a:focus-visible {
     color: #2e2410 !important;
 }
 
+/* A "planned" trip's status indicator, specifically - burgundy instead
+   of Bootstrap's plain gray .bg-secondary. active/completed/cancelled
+   are unrelated to this request and stay exactly as they were. */
+.bg-burgundy {
+    background-color: var(--color-primary) !important;
+    color: #fff !important;
+}
+
+/* Sizes a non-button status indicator (a trip's "Planned"/"Active"/etc.
+   badge) to match this app's pill-shaped .btn-sm buttons exactly, so a
+   status badge sitting next to a real Navigate button reads as the same
+   visual weight rather than a smaller/differently-shaped afterthought. */
+.badge-btn-match {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    /* Deliberately no line-height override - Bootstrap's .btn line-height
+       (1.5, inherited from body) is what actually gives the real Navigate
+       button its height on top of this same padding; matching that
+       ambient value (rather than a tighter line-height: 1) is what makes
+       this badge's rendered height actually equal the button's, not just
+       its padding/font-size look similar on paper. */
+}
+
 .form-control:focus,
 .form-select:focus {
     border-color: var(--color-primary);
@@ -185,6 +218,18 @@ a:focus-visible {
 }
 
 .btn-primary {
+    /* Bootstrap's own .btn:disabled rule (higher specificity than a
+       single .btn-primary class) reads --bs-btn-disabled-bg/
+       -border-color, which Bootstrap itself defines per-variant using
+       ITS OWN default colors - never overridden by our plain
+       background-color rule below, so every disabled branded button in
+       this app was silently falling back to Bootstrap's stock color
+       while disabled, not a dimmed version of our brand color. Real bug
+       found via a disabled "Mark all as read" button rendering
+       Bootstrap blue instead of burgundy - fixed here and on every
+       other variant below for the same reason. */
+    --bs-btn-disabled-bg: var(--color-primary);
+    --bs-btn-disabled-border-color: var(--color-primary);
     background-color: var(--color-primary);
     color: #fff;
     box-shadow: 0 4px 14px rgba(122, 30, 60, 0.32);
@@ -209,6 +254,8 @@ a:focus-visible {
 }
 
 .btn-secondary {
+    --bs-btn-disabled-bg: var(--color-secondary);
+    --bs-btn-disabled-border-color: var(--color-secondary);
     background-color: var(--color-secondary);
     color: #fff;
     box-shadow: 0 4px 14px rgba(46, 58, 89, 0.32);
@@ -233,6 +280,8 @@ a:focus-visible {
 }
 
 .btn-accent {
+    --bs-btn-disabled-bg: var(--color-accent);
+    --bs-btn-disabled-border-color: var(--color-accent);
     background-color: var(--color-accent);
     color: #2e2410;
     box-shadow: 0 4px 14px rgba(201, 164, 100, 0.35);
@@ -260,6 +309,8 @@ a:focus-visible {
    not outline, but deliberately quiet rather than competing with the
    three core brand colors. */
 .btn-neutral {
+    --bs-btn-disabled-bg: var(--color-neutral);
+    --bs-btn-disabled-border-color: var(--color-neutral);
     background-color: var(--color-neutral);
     color: var(--color-secondary);
     box-shadow: 0 2px 8px rgba(46, 58, 89, 0.12);
@@ -284,6 +335,8 @@ a:focus-visible {
 }
 
 .btn-favorite {
+    --bs-btn-disabled-bg: var(--color-favorite);
+    --bs-btn-disabled-border-color: var(--color-favorite);
     background-color: var(--color-favorite);
     color: #fff;
     box-shadow: 0 4px 14px rgba(232, 138, 147, 0.4);
@@ -307,6 +360,8 @@ a:focus-visible {
 }
 
 .btn-terracotta {
+    --bs-btn-disabled-bg: var(--color-terracotta);
+    --bs-btn-disabled-border-color: var(--color-terracotta);
     background-color: var(--color-terracotta);
     color: #fff;
     box-shadow: 0 4px 14px rgba(193, 99, 59, 0.35);
@@ -330,6 +385,8 @@ a:focus-visible {
 }
 
 .btn-plum {
+    --bs-btn-disabled-bg: var(--color-plum);
+    --bs-btn-disabled-border-color: var(--color-plum);
     background-color: var(--color-plum);
     color: #fff;
     box-shadow: 0 4px 14px rgba(107, 64, 98, 0.35);
@@ -407,17 +464,19 @@ a:focus-visible {
     outline-offset: 2px;
 }
 
-/* Unfavorited/inactive state: outline circle, muted gray, no fill. */
+/* Unfavorited/inactive state: outline circle, muted gray, no fill.
+   Darkened a notch (was #adb5bd/#6c757d) so it reads clearly against a
+   white/tinted panel instead of looking washed-out. */
 .btn-icon-circle--muted {
-    border-color: #adb5bd;
-    color: #6c757d;
+    border-color: #868e96;
+    color: #495057;
     box-shadow: none;
 }
 
 .btn-icon-circle--muted:hover,
 .btn-icon-circle--muted:focus {
-    border-color: #868e96;
-    color: #495057;
+    border-color: #495057;
+    color: #212529;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
@@ -651,6 +710,21 @@ a:focus-visible {
 .auth-card {
     width: 100%;
     max-width: 420px;
+}
+
+/* Station owner registration needs room for account fields + station
+   fields + a map picker side by side on larger screens - too much for the
+   standard 420px auth card, which stays unchanged for login/plain
+   register. */
+.auth-card--wide {
+    max-width: 900px;
+}
+
+.station-picker-map {
+    width: 100%;
+    height: 320px;
+    border-radius: 0.75rem;
+    overflow: hidden;
 }
 
 /* ============================================================
@@ -912,6 +986,163 @@ a:focus-visible {
     font-size: 28px;
     line-height: 1;
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+/* Live Trip's AND Navigate's continuously-updating user-position marker -
+   a pulsing dot, deliberately distinct from the static station/waypoint
+   pins above. Shared by both features via navigate.js's exported
+   livePositionIcon() (live-trip.js imports it rather than defining its
+   own copy) - both represent the same concept, "your live position," and
+   must look identical wherever they appear. Navigate used to have its
+   own separate, non-pulsing marker back when it was a one-shot
+   getCurrentPosition() snapshot rather than continuous tracking; that
+   distinction no longer applies, so the visual difference was removed
+   too, not just the tracking-mechanism difference. */
+.live-position-marker {
+    display: block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2563eb;
+    border: 2px solid #fff;
+    animation: live-position-pulse 1.6s ease-out infinite;
+}
+
+@keyframes live-position-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.6); }
+    70% { box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .live-position-marker {
+        animation: none;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+    }
+}
+
+/* ============================================================
+   SHARED: floating-panel component + one-shot pulse animation.
+   Used by any page overlaying/arranging UI cards around a map (Station
+   Detail below; intended for future reuse on Plan Trip/Trip History
+   too). This is a plain content style only - each page controls its own
+   layout/positioning wrapper around it (see the Station Detail section
+   below for its two-column grid).
+   ============================================================ */
+
+.floating-panel {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 1rem;
+    box-shadow: 0 4px 16px rgba(46, 58, 89, 0.15);
+    padding: 1.25rem;
+    transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.floating-panel:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 26px rgba(46, 58, 89, 0.2);
+}
+
+/* .card-tint-* (defined earlier, shared with Dashboard/Home) and
+   .floating-panel both set a single-class background-color rule, so
+   without this, whichever rule happens to come later in the file wins
+   regardless of intent - here .floating-panel's own plain white rule was
+   winning, so every tinted panel rendered identically white. Combining
+   both classes in one selector raises specificity just enough to make
+   the tint reliably win when both are present, without touching the
+   plain .card-tint-* rules Dashboard/Home already depend on. */
+.floating-panel.card-tint-primary { background-color: var(--color-primary-soft); }
+.floating-panel.card-tint-secondary { background-color: var(--color-secondary-soft); }
+.floating-panel.card-tint-accent { background-color: var(--color-accent-soft); }
+.floating-panel.card-tint-terracotta { background-color: var(--color-terracotta-soft); }
+.floating-panel.card-tint-plum { background-color: var(--color-plum-soft); }
+.floating-panel.card-tint-favorite { background-color: var(--color-favorite-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+    .floating-panel:hover {
+        transform: none;
+    }
+}
+
+@keyframes pulse-once {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+
+.pulse-once {
+    animation: pulse-once 300ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pulse-once {
+        animation: none;
+    }
+}
+
+/* ============================================================
+   DETAIL PAGES (Station Detail, Trip Detail): two-column layout - a
+   scrollable column of info panels on the left, a large map panel
+   pinned (sticky) on the right so it stays fully visible while the left
+   column scrolls. Generalized (was station-* only) once Trip Detail
+   adopted the identical layout - one shared set of classes so both
+   pages can never visually drift apart, not two near-identical copies.
+   Replaces an earlier full-background-map-with-overlaid-panels version
+   on Station Detail: with this much content (details + slots + a
+   paginated review list + a review form), overlaying it directly on
+   the map left the map too cramped to read - a proper side-by-side
+   panel shows it in full instead.
+   ============================================================ */
+
+.detail-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 460px) 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.detail-info-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    /* Breathing room before the browser's own scrollbar - this column
+       has no scrollbar of its own (the whole page scrolls), but this
+       keeps the panels from ever crowding right up against the viewport
+       edge on wide screens. */
+    padding-right: 0.5rem;
+}
+
+.detail-map-column {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    height: calc(100vh - 56px - 3.5rem);
+}
+
+.detail-map-panel {
+    height: 100%;
+    padding: 0;
+    /* Clips the Leaflet map's corners to the panel's own border-radius,
+       instead of the map drawing square corners past a rounded panel. */
+    overflow: hidden;
+}
+
+#station-map,
+#trip-map,
+#live-trip-map {
+    width: 100%;
+    height: 100%;
+}
+
+@media (max-width: 991.98px) {
+    .detail-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .detail-map-column {
+        position: static;
+        height: 420px;
+    }
 }
 
 /* ============================================================
