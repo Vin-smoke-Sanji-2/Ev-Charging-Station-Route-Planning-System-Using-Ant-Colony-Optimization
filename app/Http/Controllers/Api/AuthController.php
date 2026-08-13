@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\LoginOtpMail;
+use App\Models\LoginOtp;
 use App\Models\User;
+use App\Models\UserNotification;
 use App\Services\ChargingStationCreator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
@@ -55,6 +60,15 @@ class AuthController extends Controller
             ]);
 
             if ($isStationOwner) {
+                // Separate from ChargingStationCreator's own "new pending
+                // station" notification below - the account and the
+                // station are two independent approval gates reviewed on
+                // two different admin screens (Station Owners vs
+                // Stations), so admin needs to know about each.
+                UserNotification::notifyAdmins(
+                    'Registration',
+                    "{$user->name} registered as a station owner and is awaiting approval."
+                );
                 // The exact same creation path ChargingStationController::
                 // store() uses (owner_user_id/verification_status/
                 // total_slots/road_node_id all handled identically there),
@@ -71,6 +85,13 @@ class AuthController extends Controller
         return response()->json($user, 201);
     }
 
+    // Roles that must pass an emailed OTP after their password before a
+    // session is actually established - a deliberate, explicit product
+    // decision, not every role. Originally ev_owner + station_owner;
+    // changed 2026-08-13 to station_owner + admin - ev_owner no longer
+    // needs OTP, admin now does (the reverse of the original decision).
+    private const OTP_REQUIRED_ROLES = ['station_owner', 'admin'];
+
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -78,13 +99,96 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (! Auth::attempt($credentials)) {
+        // Auth::validate() checks the credentials WITHOUT establishing a
+        // session (unlike Auth::attempt()) - needed because a correct
+        // password should never immediately log an OTP-required user in;
+        // it should only unlock the OTP step. login() itself never
+        // creates a session for those roles - verifyOtp() does.
+        if (! Auth::validate($credentials)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
+        $user = User::where('email', $credentials['email'])->firstOrFail();
+
+        if (! in_array($user->role, self::OTP_REQUIRED_ROLES, true)) {
+            Auth::login($user);
+            $request->session()->regenerate();
+
+            return response()->json($user);
+        }
+
+        $this->sendLoginOtp($user);
+
+        return response()->json([
+            'otp_required' => true,
+            'email' => $user->email,
+        ]);
+    }
+
+    /**
+     * Second step for OTP-required roles - the actual point where a
+     * session gets established, mirroring what login() used to do
+     * directly. $request->user() is NOT authenticated yet at this point
+     * (that's the whole reason this endpoint exists), so this deliberately
+     * looks the user up by email again rather than assuming a prior
+     * request's identity.
+     */
+    public function verifyOtp(Request $request)
+    {
+        $data = $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string',
+        ]);
+
+        $user = User::where('email', $data['email'])->first();
+
+        // Same generic message whether the email doesn't exist, the code
+        // is wrong, or it's expired/already used - LoginOtp::attemptVerify()
+        // is what actually enforces all of that; this endpoint doesn't
+        // need to (and shouldn't) distinguish those cases in the response.
+        if (! $user || ! LoginOtp::attemptVerify($user, $data['code'])) {
+            return response()->json(['message' => 'Invalid or expired code'], 422);
+        }
+
+        Auth::login($user);
         $request->session()->regenerate();
 
-        return response()->json(Auth::user());
+        return response()->json($user);
+    }
+
+    public function resendOtp(Request $request)
+    {
+        $data = $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = User::where('email', $data['email'])->first();
+
+        // Always the same response, whether or not the account exists or
+        // even needs OTP - avoids letting this endpoint be used to probe
+        // which emails are registered.
+        if ($user && in_array($user->role, self::OTP_REQUIRED_ROLES, true)) {
+            $this->sendLoginOtp($user);
+        }
+
+        return response()->json(['message' => 'If an account needs a code, a new one has been sent.']);
+    }
+
+    private function sendLoginOtp(User $user): void
+    {
+        $code = LoginOtp::generateFor($user);
+
+        Mail::mailer('sendgrid')->to($user->email)->send(new LoginOtpMail($code));
+
+        // Local-dev convenience only: SendGrid's API accepts a send to a
+        // fake/nonexistent address without complaint (no synchronous
+        // bounce), so there's otherwise no way to retrieve a code sent to
+        // a made-up test address during local testing. Never logs outside
+        // 'local' - an OTP code is a real credential and must never leak
+        // into a real deployment's log files.
+        if (app()->environment('local')) {
+            Log::info("Login OTP for {$user->email}: {$code}");
+        }
     }
 
     public function logout(Request $request)
@@ -139,11 +243,17 @@ class AuthController extends Controller
 
         $user = $request->user();
 
+        // Delete the previous file (if any) BEFORE storing the new one -
+        // same ordering as before the Cloudinary move, so a failure
+        // mid-request can't orphan the old file. avatar_path now holds a
+        // Cloudinary public_id, not a local relative path, but the
+        // Storage-facade contract (delete/store/url all keyed by that one
+        // string) is otherwise unchanged.
         if ($user->avatar_path) {
-            Storage::disk('public')->delete($user->avatar_path);
+            Storage::disk('cloudinary')->delete($user->avatar_path);
         }
 
-        $path = $data['avatar']->store('avatars', 'public');
+        $path = $data['avatar']->store('avatars', 'cloudinary');
         $user->update(['avatar_path' => $path]);
 
         return response()->json($user->fresh());
@@ -154,7 +264,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         if ($user->avatar_path) {
-            Storage::disk('public')->delete($user->avatar_path);
+            Storage::disk('cloudinary')->delete($user->avatar_path);
             $user->update(['avatar_path' => null]);
         }
 

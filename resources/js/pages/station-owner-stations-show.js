@@ -111,26 +111,6 @@ function chargingSessionRow(session) {
                     </button>
                 </div>
             </div>
-            <div class="complete-session-form d-none mt-2 pt-2 border-top" data-complete-form="${session.id}">
-                <div class="row g-2">
-                    <div class="col-6">
-                        <label class="form-label small mb-1">Energy (kWh) <span class="text-muted">(optional)</span></label>
-                        <input type="number" step="0.01" min="0" class="form-control form-control-sm complete-energy-input">
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label small mb-1">Payment (MMK) <span class="text-muted">(optional)</span></label>
-                        <input type="number" step="1" min="0" class="form-control form-control-sm complete-payment-input">
-                    </div>
-                </div>
-                <div class="d-flex gap-2 mt-2">
-                    <button type="button" class="btn btn-primary btn-sm confirm-complete-btn" data-id="${session.id}">
-                        Confirm Complete
-                    </button>
-                    <button type="button" class="btn btn-neutral btn-sm dismiss-complete-btn" data-id="${session.id}">
-                        Dismiss
-                    </button>
-                </div>
-            </div>
         </div>
     `;
 }
@@ -288,33 +268,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('queue-content').addEventListener('click', async (event) => {
         const completeBtn = event.target.closest('.complete-session-btn');
         if (completeBtn) {
-            document.querySelector(`[data-complete-form="${completeBtn.dataset.id}"]`).classList.remove('d-none');
-            return;
-        }
+            // No Energy/Payment fields - cost tracking was removed from the
+            // EV Owner side entirely, so completing a session here no
+            // longer collects anything beyond the status change itself.
+            // confirm() replaces the old two-step Complete -> Confirm
+            // Complete form as the accidental-click safeguard.
+            if (!confirm('Mark this session as complete?')) return;
 
-        const dismissBtn = event.target.closest('.dismiss-complete-btn');
-        if (dismissBtn) {
-            document.querySelector(`[data-complete-form="${dismissBtn.dataset.id}"]`).classList.add('d-none');
-            return;
-        }
-
-        const confirmCompleteBtn = event.target.closest('.confirm-complete-btn');
-        if (confirmCompleteBtn) {
-            const sessionId = confirmCompleteBtn.dataset.id;
-            const form = document.querySelector(`[data-complete-form="${sessionId}"]`);
-            const energyValue = form.querySelector('.complete-energy-input').value;
-            const paymentValue = form.querySelector('.complete-payment-input').value;
-
-            // Both genuinely optional - matches the already-tested backend
-            // path (test_completing_a_session_with_no_one_waiting_just_
-            // frees_the_slot completes with neither field). Only sent when
-            // the owner actually typed a value, never as an empty string.
-            const payload = { status: 'completed' };
-            if (energyValue !== '') payload.energy_kwh = energyValue;
-            if (paymentValue !== '') payload.payment_amount = paymentValue;
-
-            confirmCompleteBtn.disabled = true;
-            await apiFetch(`/api/sessions/${sessionId}`, { method: 'PUT', body: JSON.stringify(payload) });
+            const sessionId = completeBtn.dataset.id;
+            completeBtn.disabled = true;
+            await apiFetch(`/api/sessions/${sessionId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'completed' }),
+            });
             // Always refetch rather than optimistically patch the DOM -
             // promotion happens automatically server-side within the same
             // request, so a stale client-side update could miss a newly-

@@ -1,4 +1,5 @@
 import { apiFetch } from '../api.js';
+import { initPasswordToggles } from '../password-toggle.js';
 
 function clearErrors(form, errorBox) {
     errorBox.classList.add('d-none');
@@ -22,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('register-submit');
 
     if (!form) return;
+
+    initPasswordToggles(form);
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();

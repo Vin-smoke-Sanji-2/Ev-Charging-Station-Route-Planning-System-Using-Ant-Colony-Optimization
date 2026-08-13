@@ -15,7 +15,7 @@ class ProfileTest extends TestCase
 
     public function test_uploading_a_valid_avatar_succeeds(): void
     {
-        Storage::fake('public');
+        Storage::fake('cloudinary');
         $user = $this->makeUser();
 
         $response = $this->actingAs($user)->postJson('/api/auth/avatar', [
@@ -25,12 +25,12 @@ class ProfileTest extends TestCase
         $response->assertOk()->assertJsonPath('avatar_url', fn ($url) => ! empty($url));
 
         $user->refresh();
-        Storage::disk('public')->assertExists($user->avatar_path);
+        Storage::disk('cloudinary')->assertExists($user->avatar_path);
     }
 
     public function test_uploading_a_non_image_file_is_rejected(): void
     {
-        Storage::fake('public');
+        Storage::fake('cloudinary');
         $user = $this->makeUser();
 
         $response = $this->actingAs($user)->postJson('/api/auth/avatar', [
@@ -43,7 +43,7 @@ class ProfileTest extends TestCase
 
     public function test_uploading_a_second_avatar_deletes_the_first_from_storage(): void
     {
-        Storage::fake('public');
+        Storage::fake('cloudinary');
         $user = $this->makeUser();
 
         $this->actingAs($user)->postJson('/api/auth/avatar', [
@@ -59,14 +59,14 @@ class ProfileTest extends TestCase
         $secondPath = $user->fresh()->avatar_path;
 
         $this->assertNotSame($firstPath, $secondPath);
-        Storage::disk('public')->assertMissing($firstPath);
-        Storage::disk('public')->assertExists($secondPath);
+        Storage::disk('cloudinary')->assertMissing($firstPath);
+        Storage::disk('cloudinary')->assertExists($secondPath);
         $this->assertNotNull($response->json('avatar_url'));
     }
 
     public function test_deleting_the_avatar_clears_it_and_removes_the_file(): void
     {
-        Storage::fake('public');
+        Storage::fake('cloudinary');
         $user = $this->makeUser();
 
         $this->actingAs($user)->postJson('/api/auth/avatar', [
@@ -80,12 +80,12 @@ class ProfileTest extends TestCase
             ->assertJsonPath('avatar_url', null);
 
         $this->assertNull($user->fresh()->avatar_path);
-        Storage::disk('public')->assertMissing($path);
+        Storage::disk('cloudinary')->assertMissing($path);
     }
 
     public function test_deleting_an_avatar_when_none_exists_is_a_safe_no_op(): void
     {
-        Storage::fake('public');
+        Storage::fake('cloudinary');
         $user = $this->makeUser();
 
         $response = $this->actingAs($user)->deleteJson('/api/auth/avatar');
@@ -95,7 +95,7 @@ class ProfileTest extends TestCase
 
     public function test_avatar_upload_requires_authentication(): void
     {
-        Storage::fake('public');
+        Storage::fake('cloudinary');
 
         $this->postJson('/api/auth/avatar', [
             'avatar' => UploadedFile::fake()->create('avatar.jpg', 100),

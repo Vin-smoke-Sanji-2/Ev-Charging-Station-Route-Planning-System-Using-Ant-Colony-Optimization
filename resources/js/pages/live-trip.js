@@ -4,6 +4,7 @@ import { apiFetch } from '../api.js';
 import { haversineDistanceKm, livePositionIcon } from '../navigate.js';
 import { attachRecalculate } from '../recalculate.js';
 import { renderRouteMap, renderStopListItem } from '../route-map.js';
+import { refreshChargingControl, attachStartChargingControl } from '../charging-session.js';
 
 // A recalculation replaces the active route mid-trip (new stops, possibly a
 // new geometry) - loadActiveTrip() must be safely re-runnable, so the watch
@@ -19,6 +20,31 @@ let currentMap = null;
 // earlier 150m, which would have false-triggered on that cluster.
 const GEOFENCE_RADIUS_KM = 0.04; // 40m
 
+// total_duration_min comes back from the backend in minutes - shown here
+// as "X hr Y min" rather than decimal hours, matching trip-show.js's own
+// formatDuration() (kept as a separate, identically-shaped copy per page
+// rather than a shared module - same small-duplication precedent already
+// established for formatDate()/statusBadgeClass() etc. across this app's
+// page-specific JS files).
+function formatDuration(minutes) {
+    if (minutes === null || minutes === undefined) return '—';
+    const total = Math.round(Number(minutes));
+    const hrs = Math.floor(total / 60);
+    const mins = total % 60;
+    if (hrs === 0) return `${mins} min`;
+    if (mins === 0) return `${hrs} hr`;
+    return `${hrs} hr ${mins} min`;
+}
+
+function renderTripSummary(route, stopsCount) {
+    document.getElementById('live-stat-distance').textContent =
+        route?.total_distance_km !== null && route?.total_distance_km !== undefined
+            ? `${Number(route.total_distance_km).toLocaleString()} km`
+            : '—';
+    document.getElementById('live-stat-duration').textContent = formatDuration(route?.total_duration_min);
+    document.getElementById('live-stat-stops').textContent = stopsCount;
+}
+
 function geolocationErrorMessage(error) {
     switch (error.code) {
         case error.PERMISSION_DENIED:
@@ -32,13 +58,23 @@ function geolocationErrorMessage(error) {
     }
 }
 
-// Always resolves to exactly ONE target - the first stop that hasn't been
-// reached yet, or the destination once every stop has. Deliberately never
-// checks against all stops at once: several real stations in this
-// project's seed data sit within a few hundred meters of each other (the
-// "115 Miles" rest camp, 3 separate companies), so checking only the one
-// genuinely-next target avoids ever mistaking a nearby, unrelated station
-// for the real next stop.
+// The next RECOMMENDED stop to display/geofence-check against - the first
+// one that hasn't been reached yet, or the destination once every stop
+// has. Deliberately never checks against all stops at once: several real
+// stations in this project's seed data sit within a few hundred meters of
+// each other (the "115 Miles" rest camp, 3 separate companies), so
+// checking only the one genuinely-next target avoids ever mistaking a
+// nearby, unrelated station for the real next stop.
+//
+// This is a RECOMMENDATION, not a requirement - a planned charging stop
+// is the ACO algorithm's estimate of what a driver might need, not a
+// mandatory waypoint. A driver who still had enough range to skip one
+// (traffic was lighter, they charged a little extra at an earlier stop,
+// etc.) has genuinely finished their trip once they reach the real
+// destination, whether or not every recommended stop was visited along
+// the way - see handlePosition()'s own destination-first check below and
+// renderProgress()'s Complete Trip button, both of which no longer gate
+// on this function returning 'destination'.
 function nextTarget(trip, stops) {
     const nextStop = stops.find((stop) => !stop.reached_at);
 
@@ -70,16 +106,36 @@ function renderProgress(trip, stops) {
         ? `Next stop: ${target.label}`
         : `Final destination: ${target.label}`;
 
-    // Manual "Complete Trip" fallback (see setupCompleteTrip()) only makes
-    // sense once every real charging stop has actually been reached -
-    // nextTarget() only ever returns 'destination' once that's true, so
-    // this reuses that same check rather than re-deriving it separately.
-    // Showing it earlier would let a user skip stops they were actually
-    // supposed to charge at.
+    // Manual "Complete Trip" fallback (see setupCompleteTrip()) is always
+    // available once a trip is active - it deliberately does NOT require
+    // every recommended stop to be reached first (a real driver may
+    // legitimately skip some), matching the backend's own complete()
+    // endpoint, which has never enforced stop completion either. The
+    // confirm() dialog in setupCompleteTrip() is the actual safeguard
+    // against an accidental early click, not this visibility gate.
     const completeBtn = document.getElementById('complete-trip-btn');
     if (completeBtn) {
-        completeBtn.classList.toggle('d-none', target.kind !== 'destination');
+        completeBtn.classList.remove('d-none');
     }
+}
+
+// Fetches the trip fresh and re-renders progress/stops/summary - used both
+// on plain reloads and as the onSuccess callback for each stop's "Start
+// Charging Here" control (charging-session.js), since starting a session
+// changes that stop's station availability count but nothing about
+// reached_at/geofence tracking - safe to refresh independently of
+// startTracking()'s own closure state (see nextTarget()'s doc comment: a
+// station's occupancy has no bearing on stop-reached tracking).
+async function refreshLiveTripData() {
+    const response = await apiFetch('/api/trips/active');
+    const freshTrip = response.ok ? await response.json() : null;
+    if (!freshTrip) return;
+
+    const freshRoute = freshTrip.routes[freshTrip.routes.length - 1];
+    const freshStops = freshRoute.charging_stops ?? [];
+    renderProgress(freshTrip, freshStops);
+    renderStopsList(freshStops);
+    renderTripSummary(freshRoute, freshStops.length);
 }
 
 function renderStopsList(stops) {
@@ -93,7 +149,16 @@ function renderStopsList(stops) {
     }
 
     empty.classList.add('d-none');
-    list.innerHTML = stops.map((stop) => renderStopListItem(stop, { showReachedState: true })).join('');
+    list.innerHTML = stops.map((stop) => renderStopListItem(stop, { showReachedState: true, showStartChargingButton: true })).join('');
+
+    // A control's own station is independent of trip-stop order - an EV
+    // owner can start charging at ANY stop on the route, in any order, not
+    // just the next unreached one (see the module doc comment above).
+    list.querySelectorAll('[data-role="stop-charging-control"]').forEach((root) => {
+        const stationId = root.dataset.stationId;
+        refreshChargingControl(root, stationId);
+        attachStartChargingControl(root, stationId, refreshLiveTripData);
+    });
 }
 
 function showCompletedState() {
@@ -146,12 +211,13 @@ function setupCancelTrip(tripId) {
 // with GPS tracking active until the real position crosses the geofence -
 // if that never happens (permission lost, browser/OS backgrounds the tab,
 // the user just isn't confident the automatic check will fire), there was
-// otherwise no way to finish a trip whose stops are all genuinely reached.
-// Calls the same POST /api/trips/{trip}/complete the automatic path uses -
-// no separate endpoint, no different end state. Visibility is gated by
-// renderProgress() (only shown once every stop's reached_at is set), and
-// this button is re-attached on every loadActiveTrip() reload just like
-// cancel-trip-btn, for the same duplicate-listener reason.
+// otherwise no way to finish a trip. Calls the same
+// POST /api/trips/{trip}/complete the automatic path uses - no separate
+// endpoint, no different end state. Always visible once the trip is
+// active (see renderProgress()) - the confirm() dialog below is the real
+// safeguard against an accidental click, not a stops-reached precondition.
+// Re-attached on every loadActiveTrip() reload just like cancel-trip-btn,
+// for the same duplicate-listener reason.
 function setupCompleteTrip(tripId) {
     const oldBtn = document.getElementById('complete-trip-btn');
     const btn = oldBtn.cloneNode(true);
@@ -229,26 +295,46 @@ function startTracking(trip, initialStops, map) {
 
         if (processing) return; // let the in-flight call finish before checking again
 
-        const target = nextTarget(trip, stops);
-        const distanceKm = haversineDistanceKm(userLatLng[0], userLatLng[1], target.latLng[0], target.latLng[1]);
+        // Destination proximity is checked FIRST and independently of
+        // unreached stops - reaching the real destination is what actually
+        // finishes a trip, regardless of how many of the recommended
+        // charging stops were genuinely needed. Previously this only ever
+        // checked proximity to the next *unreached stop's* coordinates
+        // (via nextTarget()) until every stop was reached, which meant a
+        // driver who skipped a stop they didn't need could physically
+        // arrive at the destination and the app would never notice, since
+        // it was watching the wrong location entirely.
+        const destinationLatLng = [Number(trip.destination_node.latitude), Number(trip.destination_node.longitude)];
+        const distanceToDestinationKm = haversineDistanceKm(userLatLng[0], userLatLng[1], destinationLatLng[0], destinationLatLng[1]);
 
-        if (distanceKm > GEOFENCE_RADIUS_KM) return;
-
-        processing = true;
-
-        try {
-            if (target.kind === 'stop') {
-                const response = await apiFetch(`/api/trips/${tripId}/stops/${target.stopId}/reached`, { method: 'POST' });
-                if (response.ok) {
-                    await refreshStopsFromServer();
-                }
-            } else {
+        if (distanceToDestinationKm <= GEOFENCE_RADIUS_KM) {
+            processing = true;
+            try {
                 const response = await apiFetch(`/api/trips/${tripId}/complete`, { method: 'POST' });
                 if (response.ok) {
                     if (watchId !== null) navigator.geolocation.clearWatch(watchId);
                     showCompletedState();
                     return;
                 }
+            } finally {
+                processing = false;
+            }
+            return;
+        }
+
+        // Not at the destination yet - fall back to the existing
+        // next-unreached-stop check (unchanged from before).
+        const target = nextTarget(trip, stops);
+        if (target.kind !== 'stop') return; // every stop already reached, just waiting to reach the destination above
+
+        const distanceToStopKm = haversineDistanceKm(userLatLng[0], userLatLng[1], target.latLng[0], target.latLng[1]);
+        if (distanceToStopKm > GEOFENCE_RADIUS_KM) return;
+
+        processing = true;
+        try {
+            const response = await apiFetch(`/api/trips/${tripId}/stops/${target.stopId}/reached`, { method: 'POST' });
+            if (response.ok) {
+                await refreshStopsFromServer();
             }
         } finally {
             processing = false;
@@ -322,6 +408,7 @@ async function loadActiveTrip() {
 
     renderProgress(trip, stops);
     renderStopsList(stops);
+    renderTripSummary(route, stops.length);
 
     content.classList.remove('d-none');
 
@@ -351,7 +438,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('live-trip-app');
     if (!container) return;
 
-    loadActiveTrip().catch(() => {
+    loadActiveTrip().catch((error) => {
+        // Surfaced to the console rather than swallowed silently - a real
+        // bug in this function previously looked identical to "no active
+        // trip" with nothing to debug from, which cost real time tracking
+        // down an unrelated issue.
+        console.error('loadActiveTrip() failed:', error);
         document.getElementById('live-trip-loading').classList.add('d-none');
         document.getElementById('live-trip-empty').classList.remove('d-none');
     });

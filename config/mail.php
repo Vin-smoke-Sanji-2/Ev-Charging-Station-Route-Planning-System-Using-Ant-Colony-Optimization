@@ -65,6 +65,15 @@ return [
             'transport' => 'resend',
         ],
 
+        // OTP login emails (AuthController::login()/verifyOtp()) - the
+        // SendGrid Web API v3, not SMTP, per the explicit request. See
+        // AppServiceProvider::boot() for the Mail::extend('sendgrid', ...)
+        // registration this 'transport' key resolves to.
+        'sendgrid' => [
+            'transport' => 'sendgrid',
+            'key' => env('SENDGRID_API_KEY'),
+        ],
+
         'sendmail' => [
             'transport' => 'sendmail',
             'path' => env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -bs -i'),

@@ -128,9 +128,15 @@ function availabilityText(station) {
  *   field exists for a future queue-aware refinement).
  * @param {boolean} [options.showReachedState] - Live Trip only: shows a
  *   checkmark and mutes the row once `stop.reached_at` is truthy.
+ * @param {boolean} [options.showStartChargingButton] - Live Trip only:
+ *   renders a per-stop "Start Charging Here" control (see
+ *   charging-session.js), so an EV owner can manually start a session at
+ *   ANY stop on the route, in any order - deliberately independent of
+ *   `reached_at`/sequence order. Skipped for a stop with no linked
+ *   `station` (should be essentially impossible, but defensive).
  * @returns {string}
  */
-export function renderStopListItem(stop, { showWaitTime = false, showReachedState = false } = {}) {
+export function renderStopListItem(stop, { showWaitTime = false, showReachedState = false, showStartChargingButton = false } = {}) {
     const station = stop.station;
     const reached = showReachedState && Boolean(stop.reached_at);
 
@@ -145,14 +151,28 @@ export function renderStopListItem(stop, { showWaitTime = false, showReachedStat
         }</span>`
         : '';
 
+    const chargingControl = showStartChargingButton && station
+        ? `
+            <div class="charging-control mt-2 pt-2 border-top" data-role="stop-charging-control" data-station-id="${station.id}">
+                <div class="text-muted small" data-role="loading">Checking your charging status...</div>
+                <p class="mb-1 small d-none" data-role="status"></p>
+                <button type="button" class="btn btn-primary btn-sm d-none" data-role="start-btn">
+                    <i class="bi bi-lightning-charge-fill"></i> Start Charging Here
+                </button>
+                <div class="alert alert-danger py-1 small mt-1 mb-0 d-none" data-role="error" role="alert"></div>
+            </div>
+        `
+        : '';
+
     return `
-        <li class="list-group-item d-flex justify-content-between align-items-start${reached ? ' text-muted' : ''}">
-            <div>
+        <li class="list-group-item d-flex justify-content-between align-items-start flex-wrap${reached ? ' text-muted' : ''}">
+            <div class="flex-grow-1">
                 <div class="fw-semibold">
                     ${station ? station.name : 'Unknown station'}
                     ${reached ? '<i class="bi bi-check-circle-fill text-success ms-1"></i>' : ''}
                 </div>
                 <div class="text-muted small">${meta}</div>
+                ${chargingControl}
             </div>
             ${waitBadge}
         </li>

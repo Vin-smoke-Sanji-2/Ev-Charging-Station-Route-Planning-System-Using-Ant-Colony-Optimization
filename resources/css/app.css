@@ -196,6 +196,74 @@ a:focus-visible {
     box-shadow: 0 0 0 0.2rem rgba(122, 30, 60, 0.2);
 }
 
+/* My EVs' "enter it manually" fallback toggle (vehicles-index.js) - needed
+   to read as more inviting than Bootstrap's plain .btn-link, since it's a
+   genuinely useful escape hatch, not a low-priority afterthought, without
+   competing with the modal's real primary/secondary buttons for attention. */
+.manual-entry-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: none;
+    background: none;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-accent-hover);
+    text-decoration: none;
+    transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.manual-entry-toggle:hover,
+.manual-entry-toggle:focus-visible {
+    background-color: var(--color-accent-soft);
+    color: var(--color-primary);
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+.manual-entry-toggle:focus-visible {
+    outline: 2px solid var(--color-secondary);
+    outline-offset: 2px;
+}
+
+.manual-entry-toggle:active {
+    transform: translateY(0) scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .manual-entry-toggle {
+        transition: none;
+    }
+}
+
+/* Password show/hide toggle (Login, Register - see password-toggle.js).
+   Built on Bootstrap's plain .input-group-text addon, not a .btn-outline-*
+   variant - this app deliberately uses zero outline buttons anywhere (see
+   the design-system notes), and a small icon-only field addon isn't a
+   "button" in that same sense anyway. Applied to a real <button> element
+   (for keyboard/click accessibility) rather than a <span>, so native
+   button chrome needs resetting to inherit .input-group-text's look. */
+.password-toggle-btn.input-group-text {
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    color: var(--color-secondary);
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+.password-toggle-btn.input-group-text:hover {
+    background-color: var(--color-base);
+    color: var(--color-primary);
+}
+
+.password-toggle-btn.input-group-text:focus-visible {
+    outline: 2px solid var(--color-secondary);
+    outline-offset: 1px;
+    z-index: 3;
+}
+
 /* ============================================================
    BUTTONS - filled only, no .btn-outline-* used anywhere in this
    app anymore. Pill-shaped, elevated with a real shadow, hover-lift,
@@ -423,6 +491,45 @@ a:focus-visible {
 }
 
 /* ============================================================
+   ADMIN PORTAL - large action-button treatment (Accept/Reject/
+   Verify/Suspend/Reactivate and the Overview "Review Stations"
+   pill). A new explicit class, not a redefinition of Bootstrap's
+   own .btn-lg (completely inert/unstyled everywhere else in this
+   app) - reusing that name here would risk a future unrelated page
+   silently inheriting admin-only sizing the moment it added .btn-lg
+   for an unrelated reason. Only touches shape/size/motion, never
+   background-color, so .btn-danger (Reject/Suspend) keeps rendering
+   Bootstrap's own semantic red - see .btn-icon-circle--danger's own
+   comment below for why destructive actions deliberately never take
+   a brand token - while gaining the exact same pill shape/padding/
+   hover-lift as .btn-primary (Accept/Verify/Reactivate). Same-shape,
+   different-color is the deliberate reading of "same design/style
+   as Accept."
+   ============================================================ */
+.btn-admin-action {
+    border-radius: 999px;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.btn-admin-action:hover,
+.btn-admin-action:focus {
+    transform: translateY(-2px);
+}
+
+.btn-admin-action:active {
+    transform: translateY(0) scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn-admin-action {
+        transition: none;
+    }
+}
+
+/* ============================================================
    CIRCULAR ICON-ONLY BUTTONS - small per-item actions (favorite
    toggle, edit/delete on a card, mark-as-read) where a text label
    would be too heavy. Same hover-lift/active-compress/focus-ring
@@ -639,6 +746,14 @@ a:focus-visible {
     font-weight: 600;
     font-size: 1rem;
     flex-shrink: 0;
+}
+
+/* The real uploaded photo variant (falls back to the initial-letter
+   circle above when no avatar_url exists) - object-fit keeps a
+   non-square photo from stretching to fill the circle. */
+.app-navbar .navbar-profile-avatar-img {
+    object-fit: cover;
+    background-color: var(--color-base);
 }
 
 .app-navbar .navbar-profile-name {

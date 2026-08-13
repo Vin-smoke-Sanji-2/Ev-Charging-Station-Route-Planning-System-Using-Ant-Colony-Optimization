@@ -47,6 +47,16 @@ return [
             'report' => false,
         ],
 
+        // Profile avatars (AuthController::uploadAvatar()/deleteAvatar())
+        // - registered by cloudinary-labs/cloudinary-laravel's
+        // Storage::extend('cloudinary', ...) call. Credentials come from a
+        // single CLOUDINARY_URL env var (cloudinary://API_KEY:API_SECRET@
+        // CLOUD_NAME), not separate key/secret entries, per that package's
+        // own config/cloudinary.php.
+        'cloudinary' => [
+            'driver' => 'cloudinary',
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

@@ -1,4 +1,9 @@
-@extends('layouts.app')
+{{-- Shared, portal-agnostic across all three roles - layoutFor() picks the
+     correct sidebar/navbar chrome, and every route (notifications.index /
+     station-owner.notifications / admin.notifications) renders this exact
+     same view, same JS bundle. See profile/index.blade.php and
+     coming-soon.blade.php for the identical precedent. --}}
+@extends(auth()->user()->layoutFor())
 
 @section('title', 'Notifications - EV Route Planner')
 

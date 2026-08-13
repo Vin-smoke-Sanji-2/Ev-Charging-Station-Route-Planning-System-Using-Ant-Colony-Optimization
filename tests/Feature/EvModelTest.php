@@ -104,4 +104,59 @@ class EvModelTest extends TestCase
 
         $this->assertDatabaseHas('ev_models', ['id' => $evModel->id]);
     }
+
+    /**
+     * The non-admin creation path (My EVs' "enter it manually" fallback -
+     * see vehicles-index.js) - any authenticated role can reach it, not
+     * just ev_owner, since nothing about this endpoint is role-specific.
+     */
+    public function test_any_authenticated_user_can_create_an_ev_model_via_the_non_admin_endpoint(): void
+    {
+        $evOwner = $this->makeUser();
+
+        $response = $this->actingAs($evOwner)->postJson('/api/ev-models', [
+            'brand' => 'Rare Brand',
+            'model' => 'Rare Model',
+            'battery_capacity_kwh' => 55,
+            'max_range_km' => 350,
+            'connector_type' => 'Type2',
+        ]);
+
+        $response->assertStatus(201)->assertJsonPath('brand', 'Rare Brand');
+        $this->assertDatabaseHas('ev_models', ['brand' => 'Rare Brand', 'model' => 'Rare Model']);
+    }
+
+    public function test_unauthenticated_user_cannot_create_an_ev_model(): void
+    {
+        $this->postJson('/api/ev-models', [
+            'brand' => 'Rare Brand',
+            'model' => 'Rare Model',
+            'battery_capacity_kwh' => 55,
+            'max_range_km' => 350,
+            'connector_type' => 'Type2',
+        ])->assertStatus(401);
+    }
+
+    /**
+     * Duplicate-safe by design (see the controller's own doc comment) -
+     * opening creation up to every user means two people independently
+     * typing the same real model shouldn't silently produce two rows.
+     * Case-insensitive on both brand and model.
+     */
+    public function test_creating_an_ev_model_matching_an_existing_one_returns_the_existing_row_instead_of_duplicating(): void
+    {
+        $evOwner = $this->makeUser();
+        $existing = $this->makeEvModel(['brand' => 'Tesla', 'model' => 'Model 3']);
+
+        $response = $this->actingAs($evOwner)->postJson('/api/ev-models', [
+            'brand' => 'tesla',
+            'model' => 'MODEL 3',
+            'battery_capacity_kwh' => 99,
+            'max_range_km' => 999,
+            'connector_type' => 'CCS2',
+        ]);
+
+        $response->assertStatus(200)->assertJsonPath('id', $existing->id);
+        $this->assertDatabaseCount('ev_models', 1);
+    }
 }

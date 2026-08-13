@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Overview - EV Route Planner')
+@section('title', 'Dashboard - EV Route Planner')
 
 @push('head')
     @vite(['resources/js/pages/admin-overview.js'])
@@ -15,49 +15,56 @@
 
         <div id="overview-content" class="d-none">
             <div class="row g-3 mb-3">
+                {{-- All 4 stat cards are now clickable - each links to its
+                     own dedicated page. Total Users links to the new
+                     combined Total Users page (not EV Owners directly
+                     anymore), since that page is the one built to show
+                     both roles with a role dropdown. --}}
                 <div class="col-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100">
+                    <a href="{{ route('admin.total-users') }}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset d-block">
                         <div class="card-body text-center">
                             <div class="text-muted small text-uppercase">Total Users</div>
                             <div class="fs-3 fw-semibold" id="stat-total-users">&mdash;</div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100">
+                    <a href="{{ route('admin.stations') }}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset d-block">
                         <div class="card-body text-center">
                             <div class="text-muted small text-uppercase">Total Stations</div>
                             <div class="fs-3 fw-semibold" id="stat-total-stations">&mdash;</div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100">
+                    <a href="{{ route('admin.trips') }}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset d-block">
                         <div class="card-body text-center">
                             <div class="text-muted small text-uppercase">Total Trips</div>
                             <div class="fs-3 fw-semibold" id="stat-total-trips">&mdash;</div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100">
+                    <a href="{{ route('admin.active-today') }}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset d-block">
                         <div class="card-body text-center">
                             <div class="text-muted small text-uppercase">Active Today</div>
                             <div class="fs-3 fw-semibold" id="stat-active-today">&mdash;</div>
                         </div>
-                    </div>
+                    </a>
                 </div>
             </div>
 
             <div class="row g-3">
                 <div class="col-md-4">
-                    <div class="card border-0 shadow-sm h-100">
+                    <a href="{{ route('admin.stations') }}?tab=pending" class="card border-0 shadow-sm h-100 text-decoration-none text-reset d-block">
                         <div class="card-body">
                             <h6 class="text-uppercase small fw-semibold text-muted mb-2">Pending Station Verifications</h6>
                             <div class="fs-3 fw-semibold" id="stat-pending-verifications">&mdash;</div>
-                            <p class="text-muted small mb-0 mt-2">Station verification management is coming in a future update.</p>
+                            <span class="btn btn-primary btn-admin-action mt-2">
+                                <i class="bi bi-ev-station"></i> Review Stations
+                            </span>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 <div class="col-md-8">

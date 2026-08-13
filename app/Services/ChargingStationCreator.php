@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ChargingStation;
+use App\Models\UserNotification;
 
 /**
  * The one real "create a new station" implementation - shared by
@@ -37,6 +38,14 @@ class ChargingStationCreator
         // this method's two callers was silently left with a null
         // road_node_id until this fix.
         $this->roadNodeLinker->linkStation($station);
+
+        // Covers both callers (a station owner adding another station, or
+        // a brand-new owner's first station via registration) from this
+        // one shared place, rather than notifying separately in each.
+        UserNotification::notifyAdmins(
+            'Station',
+            "\"{$station->name}\" was submitted and is awaiting verification."
+        );
 
         return $station->fresh();
     }

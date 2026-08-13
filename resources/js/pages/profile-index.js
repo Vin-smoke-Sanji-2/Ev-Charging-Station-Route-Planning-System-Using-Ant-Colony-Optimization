@@ -25,16 +25,31 @@ function renderAvatar(avatarUrl) {
     const preview = document.getElementById('avatar-preview');
     const placeholder = document.getElementById('avatar-placeholder');
     const removeBtn = document.getElementById('remove-avatar-btn');
+    // The shared navbar's own avatar (top-right corner, every layout) -
+    // kept in sync from this same function/call sites so it never needs
+    // a full page reload to reflect a just-uploaded or just-removed
+    // photo, matching the Profile page's own preview.
+    const navbarImg = document.getElementById('navbar-avatar-img');
+    const navbarInitial = document.getElementById('navbar-avatar-initial');
 
     if (avatarUrl) {
-        preview.src = `${avatarUrl}?t=${Date.now()}`; // cache-bust so a replaced photo shows immediately
+        const cacheBusted = `${avatarUrl}?t=${Date.now()}`; // cache-bust so a replaced photo shows immediately
+        preview.src = cacheBusted;
         preview.classList.remove('d-none');
         placeholder.classList.add('d-none');
         removeBtn.classList.remove('d-none');
+
+        navbarImg.src = cacheBusted;
+        navbarImg.classList.remove('d-none');
+        navbarInitial.classList.add('d-none');
     } else {
         preview.classList.add('d-none');
         placeholder.classList.remove('d-none');
         removeBtn.classList.add('d-none');
+
+        navbarImg.removeAttribute('src');
+        navbarImg.classList.add('d-none');
+        navbarInitial.classList.remove('d-none');
     }
 }
 

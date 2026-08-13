@@ -86,9 +86,37 @@ async function loadEvModelOptions(select) {
     ).join('');
 }
 
+// Both Add and Edit always start in dropdown mode - even when editing a
+// vehicle, its current model is a real dropdown option (that's what it was
+// created from originally), so there's no reason to default to manual
+// entry. The user can still toggle to manual if they want to switch it to
+// something not in the list.
+function showDropdownMode(form) {
+    document.getElementById('ev-model-select-group').classList.remove('d-none');
+    document.getElementById('ev-model-manual-group').classList.add('d-none');
+    form.ev_model_id.required = true;
+    form.brand.required = false;
+    form.model.required = false;
+    form.battery_capacity_kwh.required = false;
+    form.max_range_km.required = false;
+    form.connector_type.required = false;
+}
+
+function showManualEntryMode(form) {
+    document.getElementById('ev-model-select-group').classList.add('d-none');
+    document.getElementById('ev-model-manual-group').classList.remove('d-none');
+    form.ev_model_id.required = false;
+    form.brand.required = true;
+    form.model.required = true;
+    form.battery_capacity_kwh.required = true;
+    form.max_range_km.required = true;
+    form.connector_type.required = true;
+}
+
 function resetFormToAddMode(form, modalTitle) {
     form.reset();
     form.vehicle_id.value = '';
+    showDropdownMode(form);
     modalTitle.textContent = 'Add Vehicle';
 }
 
@@ -97,7 +125,28 @@ function fillFormForEdit(form, modalTitle, button) {
     form.ev_model_id.value = button.dataset.evModelId;
     form.plate_no.value = button.dataset.plateNo;
     form.is_default.checked = button.dataset.isDefault === '1';
+    showDropdownMode(form);
     modalTitle.textContent = 'Edit Vehicle';
+}
+
+// Creates a real EvModel row from the manually-typed fields (find-or-create,
+// case-insensitive on brand+model - see EvModelController::store()'s own
+// doc comment), then returns its id to use as the vehicle's ev_model_id.
+// A vehicle always needs a real EvModel - trip planning reads
+// max_range_km/battery_capacity_kwh directly off it (AcoRouteEngine) - so
+// "type it manually" still needs those two numbers, it just doesn't
+// require them to already be a dropdown option.
+async function createEvModelFromManualEntry(form) {
+    return apiFetch('/api/ev-models', {
+        method: 'POST',
+        body: JSON.stringify({
+            brand: form.brand.value,
+            model: form.model.value,
+            battery_capacity_kwh: form.battery_capacity_kwh.value,
+            max_range_km: form.max_range_km.value,
+            connector_type: form.connector_type.value,
+        }),
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -111,6 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalEl = document.getElementById('vehicleModal');
     const evModelSelect = document.getElementById('ev_model_id');
     const addBtn = document.getElementById('add-vehicle-btn');
+    const toggleManualBtn = document.getElementById('toggle-manual-entry-btn');
+    const toggleDropdownBtn = document.getElementById('toggle-dropdown-btn');
 
     loadVehicles();
     loadEvModelOptions(evModelSelect);
@@ -118,6 +169,16 @@ document.addEventListener('DOMContentLoaded', () => {
     addBtn.addEventListener('click', () => {
         clearErrors(form, errorBox);
         resetFormToAddMode(form, modalTitle);
+    });
+
+    toggleManualBtn.addEventListener('click', () => {
+        clearErrors(form, errorBox);
+        showManualEntryMode(form);
+    });
+
+    toggleDropdownBtn.addEventListener('click', () => {
+        clearErrors(form, errorBox);
+        showDropdownMode(form);
     });
 
     grid.addEventListener('click', async (event) => {
@@ -148,12 +209,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const vehicleId = form.vehicle_id.value;
         const url = vehicleId ? `/api/vehicles/${vehicleId}` : '/api/vehicles';
         const method = vehicleId ? 'PUT' : 'POST';
+        const manualEntryActive = !document.getElementById('ev-model-manual-group').classList.contains('d-none');
 
         try {
+            let evModelId = form.ev_model_id.value;
+
+            // Manual entry is a two-step chain: create (or find) the real
+            // EvModel row first, then use its id exactly like a dropdown
+            // pick - the vehicle-create/update call below never knows or
+            // cares which path supplied ev_model_id.
+            if (manualEntryActive) {
+                const evModelResponse = await createEvModelFromManualEntry(form);
+                const evModelData = await evModelResponse.json().catch(() => ({}));
+
+                if (!evModelResponse.ok) {
+                    if (evModelResponse.status === 422 && evModelData.errors) {
+                        showFieldErrors(form, evModelData.errors);
+                    } else {
+                        errorBox.textContent = evModelData.message || 'Unable to save this EV model. Please try again.';
+                        errorBox.classList.remove('d-none');
+                    }
+                    return;
+                }
+
+                evModelId = evModelData.id;
+            }
+
             const response = await apiFetch(url, {
                 method,
                 body: JSON.stringify({
-                    ev_model_id: form.ev_model_id.value,
+                    ev_model_id: evModelId,
                     plate_no: form.plate_no.value || null,
                     is_default: form.is_default.checked,
                 }),
@@ -162,6 +247,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
                 await loadVehicles();
+                if (manualEntryActive) {
+                    // Picks up the just-created (or matched) model so it's
+                    // there next time without needing a page refresh.
+                    await loadEvModelOptions(evModelSelect);
+                }
                 return;
             }
 

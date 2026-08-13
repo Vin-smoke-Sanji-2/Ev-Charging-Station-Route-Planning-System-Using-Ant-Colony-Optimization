@@ -42,12 +42,46 @@
 
                         <div id="vehicle-form-error" class="alert alert-danger d-none" role="alert"></div>
 
-                        <div class="mb-3">
+                        <div class="mb-3" id="ev-model-select-group">
                             <label for="ev_model_id" class="form-label">EV Model</label>
                             <select class="form-select" id="ev_model_id" name="ev_model_id" required>
                                 <option value="">Loading EV models...</option>
                             </select>
                             <div class="invalid-feedback" data-error-for="ev_model_id"></div>
+                            <button type="button" class="manual-entry-toggle mt-1" id="toggle-manual-entry-btn">
+                                <i class="bi bi-pencil-square"></i> Can't find your EV model? Enter it manually
+                            </button>
+                        </div>
+
+                        <div class="mb-3 d-none" id="ev-model-manual-group">
+                            <label class="form-label d-flex align-items-center justify-content-between">
+                                Enter your EV details manually
+                                <button type="button" class="manual-entry-toggle" id="toggle-dropdown-btn">
+                                    <i class="bi bi-list-ul"></i> Choose from the list instead
+                                </button>
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="text" class="form-control" name="brand" placeholder="Brand (e.g. Tesla)">
+                                    <div class="invalid-feedback" data-error-for="brand"></div>
+                                </div>
+                                <div class="col-6">
+                                    <input type="text" class="form-control" name="model" placeholder="Model (e.g. Model 3)">
+                                    <div class="invalid-feedback" data-error-for="model"></div>
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" step="0.01" min="0" class="form-control" name="battery_capacity_kwh" placeholder="Battery capacity (kWh)">
+                                    <div class="invalid-feedback" data-error-for="battery_capacity_kwh"></div>
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" step="0.01" min="0" class="form-control" name="max_range_km" placeholder="Max range (km)">
+                                    <div class="invalid-feedback" data-error-for="max_range_km"></div>
+                                </div>
+                                <div class="col-12">
+                                    <input type="text" class="form-control" name="connector_type" placeholder="Connector type (e.g. CCS2, Type2)">
+                                    <div class="invalid-feedback" data-error-for="connector_type"></div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-3">

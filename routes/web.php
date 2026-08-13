@@ -127,15 +127,59 @@ Route::middleware('auth')->group(function () {
 
             return view('station-owner.stations-show', ['stationId' => $station]);
         })->name('station-owner.stations.show');
+
+        // Reuses the exact same view/JS as the EV Owner's own
+        // notifications.index - see that view's own doc comment.
+        // Deliberately not gated by stationOwnerAccessDeniedMessage() like
+        // the two routes above - even a pending/rejected/suspended owner
+        // should be able to see notifications about their own account
+        // status (that's literally one of the things this page shows).
+        Route::get('/station-owner/notifications', function () {
+            return view('notifications.index');
+        })->name('station-owner.notifications');
     });
 
     // Admin-only pages, same portal-redirect protection as the two groups
-    // above. Part 1 of the Admin portal - scaffolding + Overview only, see
-    // CLAUDE.md. Users/Stations/EV Models/Road Graph land in their own
-    // follow-up prompts, each adding its own route + sidebar entry.
+    // above. EV Models/Road Graph land in their own follow-up prompts, each
+    // adding its own route + sidebar entry. The single "Users" page was
+    // replaced by a dedicated EV Owners (read-only) page and a dedicated
+    // Station Owners (approval workflow) page - see CLAUDE.md's Admin
+    // portal approval-workflow-redesign entry. total-users/trips/
+    // active-today are the click targets for Overview's own stat cards
+    // of the same names - see CLAUDE.md's "New pages, search/filter,
+    // button redesign" entry.
     Route::middleware('portal:admin')->group(function () {
         Route::get('/admin/overview', function () {
             return view('admin.overview');
         })->name('admin.overview');
+
+        Route::get('/admin/ev-owners', function () {
+            return view('admin.ev-owners');
+        })->name('admin.ev-owners');
+
+        Route::get('/admin/station-owners', function () {
+            return view('admin.station-owners');
+        })->name('admin.station-owners');
+
+        Route::get('/admin/stations', function () {
+            return view('admin.stations');
+        })->name('admin.stations');
+
+        Route::get('/admin/total-users', function () {
+            return view('admin.total-users');
+        })->name('admin.total-users');
+
+        Route::get('/admin/trips', function () {
+            return view('admin.trips');
+        })->name('admin.trips');
+
+        Route::get('/admin/active-today', function () {
+            return view('admin.active-today');
+        })->name('admin.active-today');
+
+        // Same shared notifications.index view every other portal uses.
+        Route::get('/admin/notifications', function () {
+            return view('notifications.index');
+        })->name('admin.notifications');
     });
 });

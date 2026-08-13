@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
+use App\Http\Controllers\Api\Admin\AdminTripController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChargingSessionController;
 use App\Http\Controllers\Api\ChargingSlotController;
@@ -24,6 +25,15 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+
+// Throttled - a 6-digit code has only 1M combinations, so verify-otp in
+// particular needs a real limit to not be brute-forceable inside its
+// 10-minute validity window. resend-otp is throttled too so it can't be
+// used to spam a user's inbox.
+Route::middleware('throttle:10,1')->group(function () {
+    Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp']);
+    Route::post('/auth/resend-otp', [AuthController::class, 'resendOtp']);
+});
 
 Route::get('/ev-models', [EvModelController::class, 'index']);
 
@@ -64,6 +74,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('vehicles', UserVehicleController::class)->except(['index', 'store'])->parameters(['vehicles' => 'vehicle']);
     Route::get('/vehicles', [UserVehicleController::class, 'index']);
     Route::post('/vehicles', [UserVehicleController::class, 'store']);
+
+    // Lets My EVs' "enter it manually" fallback create a real EvModel row
+    // when the desired one isn't in the dropdown - same controller method/
+    // validation as the admin-only /admin/ev-models version, just reachable
+    // by any authenticated user. Editing/deleting an existing (possibly
+    // shared) EvModel stays admin-only - only creating a new one is opened up.
+    Route::post('/ev-models', [EvModelController::class, 'store']);
 
     Route::get('/trips', [TripController::class, 'index']);
     Route::post('/trips', [TripController::class, 'store']);
@@ -121,9 +138,12 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/users', [AdminDashboardController::class, 'users']);
     Route::put('/users/{user}/status', [AdminDashboardController::class, 'updateUserStatus']);
 
-    Route::get('/stations/pending', [AdminDashboardController::class, 'pendingStations']);
+    Route::get('/stations', [AdminDashboardController::class, 'stations']);
     Route::put('/stations/{station}/verify', [AdminDashboardController::class, 'verifyStation']);
     Route::delete('/stations/{station}', [ChargingStationController::class, 'destroy']);
+
+    Route::get('/active-today', [AdminDashboardController::class, 'activeToday']);
+    Route::get('/trips', [AdminTripController::class, 'index']);
 
     Route::post('/ev-models', [EvModelController::class, 'store']);
     Route::put('/ev-models/{evModel}', [EvModelController::class, 'update']);

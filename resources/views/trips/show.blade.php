@@ -51,19 +51,15 @@
                 <div class="floating-panel card-tint-secondary">
                     <h6 class="text-uppercase small fw-semibold text-muted mb-3">Trip Summary</h6>
                     <div class="row g-3 text-center">
-                        <div class="col-6">
+                        <div class="col-4">
                             <div class="text-muted small">Distance</div>
                             <div class="fs-5 fw-semibold" id="stat-distance">&mdash;</div>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <div class="text-muted small">Duration</div>
                             <div class="fs-5 fw-semibold" id="stat-duration">&mdash;</div>
                         </div>
-                        <div class="col-6">
-                            <div class="text-muted small">Estimated Cost</div>
-                            <div class="fs-5 fw-semibold" id="stat-cost">&mdash;</div>
-                        </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <div class="text-muted small">Charging Stops</div>
                             <div class="fs-5 fw-semibold" id="stat-stops">&mdash;</div>
                         </div>

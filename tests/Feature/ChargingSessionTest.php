@@ -338,4 +338,110 @@ class ChargingSessionTest extends TestCase
         $response->assertStatus(403);
         $this->assertSame('charging', $session->fresh()->status);
     }
+
+    public function test_joining_a_station_notifies_its_owner(): void
+    {
+        $owner = $this->makeStationOwner();
+        $rider = $this->makeUser();
+        $station = $this->makeStation($owner);
+        $this->makeSlot($station, ['status' => 'available']);
+
+        $this->actingAs($rider)->postJson("/api/stations/{$station->id}/sessions", [])
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $owner->id,
+            'type' => 'Queue',
+        ]);
+    }
+
+    public function test_joining_an_ownerless_station_does_not_error_or_notify_anyone(): void
+    {
+        $rider = $this->makeUser();
+        $station = $this->makeStation(null);
+        $this->makeSlot($station, ['status' => 'available']);
+
+        $this->actingAs($rider)->postJson("/api/stations/{$station->id}/sessions", [])
+            ->assertStatus(201);
+
+        $this->assertDatabaseCount('user_notifications', 0);
+    }
+
+    public function test_promoting_a_waiting_session_to_charging_notifies_the_rider(): void
+    {
+        $owner = $this->makeStationOwner();
+        $rider = $this->makeUser();
+        $station = $this->makeStation($owner);
+        $this->makeSlot($station, ['status' => 'available']);
+        $session = $this->makeSession($station, $rider, ['status' => 'waiting']);
+
+        $this->actingAs($owner)->putJson("/api/sessions/{$session->id}", ['status' => 'charging'])
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $rider->id,
+            'type' => 'Charging',
+        ]);
+    }
+
+    public function test_completing_a_session_notifies_the_rider(): void
+    {
+        $owner = $this->makeStationOwner();
+        $rider = $this->makeUser();
+        $station = $this->makeStation($owner);
+        $slot = $this->makeSlot($station, ['status' => 'occupied']);
+        $session = $this->makeSession($station, $rider, ['status' => 'charging', 'slot_id' => $slot->id, 'started_at' => now()]);
+
+        $this->actingAs($owner)->putJson("/api/sessions/{$session->id}", ['status' => 'completed'])
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $rider->id,
+            'type' => 'Charging',
+            'message' => "Your charging session at \"{$station->name}\" has been completed.",
+        ]);
+    }
+
+    public function test_cancelling_a_session_notifies_the_rider(): void
+    {
+        $owner = $this->makeStationOwner();
+        $rider = $this->makeUser();
+        $station = $this->makeStation($owner);
+        $slot = $this->makeSlot($station, ['status' => 'occupied']);
+        $session = $this->makeSession($station, $rider, ['status' => 'charging', 'slot_id' => $slot->id, 'started_at' => now()]);
+
+        $this->actingAs($owner)->putJson("/api/sessions/{$session->id}", ['status' => 'cancelled'])
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $rider->id,
+            'type' => 'Charging',
+            'message' => "Your charging session at \"{$station->name}\" has been cancelled.",
+        ]);
+    }
+
+    public function test_auto_promoting_the_next_waiting_session_notifies_that_rider(): void
+    {
+        $owner = $this->makeStationOwner();
+        $charging = $this->makeUser();
+        $waiting = $this->makeUser();
+        $station = $this->makeStation($owner);
+        $slot = $this->makeSlot($station, ['status' => 'occupied']);
+        $chargingSession = $this->makeSession($station, $charging, ['status' => 'charging', 'slot_id' => $slot->id, 'started_at' => now()]);
+        $this->makeSession($station, $waiting, ['status' => 'waiting', 'queued_at' => now()]);
+
+        $this->actingAs($owner)->putJson("/api/sessions/{$chargingSession->id}", ['status' => 'completed'])
+            ->assertStatus(200);
+
+        // The waiting rider gets the same "you've been assigned a slot"
+        // notification a direct promotion produces - two separate
+        // notification rows exist (one Charging "completed" for the
+        // just-finished rider, one Charging "assigned" for the newly
+        // promoted one).
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $waiting->id,
+            'type' => 'Charging',
+        ]);
+        $this->assertDatabaseCount('user_notifications', 2);
+    }
 }

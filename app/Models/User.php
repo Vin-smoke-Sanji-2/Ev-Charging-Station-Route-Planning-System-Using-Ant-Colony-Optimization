@@ -44,7 +44,7 @@ class User extends Authenticatable
     protected function avatarUrl(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->avatar_path ? Storage::disk('public')->url($this->avatar_path) : null,
+            get: fn () => $this->avatar_path ? Storage::disk('cloudinary')->url($this->avatar_path) : null,
         );
     }
 
@@ -81,6 +81,11 @@ class User extends Authenticatable
     public function appNotifications()
     {
         return $this->hasMany(UserNotification::class);
+    }
+
+    public function loginOtps()
+    {
+        return $this->hasMany(LoginOtp::class);
     }
 
     /**

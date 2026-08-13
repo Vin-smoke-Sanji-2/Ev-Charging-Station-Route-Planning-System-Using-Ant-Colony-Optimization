@@ -20,6 +20,12 @@ function showFieldErrors(form, errors) {
 
 function verificationBadge(status) {
     if (status === 'verified') return '<span class="badge badge-verified badge-status">Verified</span>';
+    // A suspended station was already approved and then temporarily
+    // banned - genuinely different from "not yet reviewed," so it gets its
+    // own badge rather than silently falling through to the Pending case
+    // below (which is what happened before this station could ever be
+    // suspended).
+    if (status === 'suspended') return '<span class="badge bg-warning text-dark badge-status">Suspended</span>';
     if (status === 'rejected') return '<span class="badge bg-danger badge-status">Rejected</span>';
     return '<span class="badge bg-accent badge-status">Pending</span>';
 }

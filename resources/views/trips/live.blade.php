@@ -61,6 +61,24 @@
                     <div id="cancel-trip-error" class="small text-danger mt-2 d-none"></div>
                 </div>
 
+                <div class="floating-panel card-tint-secondary">
+                    <h6 class="text-uppercase small fw-semibold text-muted mb-3">Trip Summary</h6>
+                    <div class="row g-3 text-center">
+                        <div class="col-4">
+                            <div class="text-muted small">Distance</div>
+                            <div class="fs-5 fw-semibold" id="live-stat-distance">&mdash;</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Duration</div>
+                            <div class="fs-5 fw-semibold" id="live-stat-duration">&mdash;</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Charging Stops</div>
+                            <div class="fs-5 fw-semibold" id="live-stat-stops">&mdash;</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="floating-panel card-tint-accent">
                     <h6 class="text-uppercase small fw-semibold text-muted mb-2">Progress</h6>
                     <div class="fw-semibold" id="live-trip-progress-text">&mdash;</div>

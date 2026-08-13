@@ -57,13 +57,13 @@
                     <ul class="list-group list-group-flush" id="slots-list"></ul>
                     <p class="text-muted mb-0 small d-none" id="slots-empty">No slots configured yet.</p>
 
-                    <div class="mt-3 pt-3 border-top">
-                        <div id="charging-session-loading" class="text-muted small">Checking your charging status...</div>
-                        <p class="mb-2 small d-none" id="charging-session-status"></p>
-                        <button type="button" class="btn btn-primary btn-sm d-none" id="start-charging-btn">
-                            <i class="bi bi-lightning-charge-fill"></i> <span id="start-charging-btn-label">Start Charging Here</span>
+                    <div class="mt-3 pt-3 border-top" id="charging-control">
+                        <div class="text-muted small" data-role="loading">Checking your charging status...</div>
+                        <p class="mb-2 small d-none" data-role="status"></p>
+                        <button type="button" class="btn btn-primary btn-sm d-none" data-role="start-btn">
+                            <i class="bi bi-lightning-charge-fill"></i> Start Charging Here
                         </button>
-                        <div id="charging-session-error" class="alert alert-danger py-2 small mt-2 d-none" role="alert"></div>
+                        <div class="alert alert-danger py-2 small mt-2 d-none" data-role="error" role="alert"></div>
                     </div>
                 </div>
 

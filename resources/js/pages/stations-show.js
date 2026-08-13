@@ -5,6 +5,7 @@ import { attachNavigate } from '../navigate.js';
 import { MYANMAR_BOUNDS, MYANMAR_MIN_ZOOM } from '../map-bounds.js';
 import { categoryFor, markerIconFor } from '../station-marker.js';
 import { triggerPulse } from '../animate.js';
+import { refreshChargingControl, attachStartChargingControl } from '../charging-session.js';
 
 function renderStationMap(station) {
     const latLng = [Number(station.latitude), Number(station.longitude)];
@@ -61,17 +62,6 @@ function slotStatusBadgeClass(status) {
 function formatDate(iso) {
     if (!iso) return '—';
     return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-function formatDateTime(iso) {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
 }
 
 function setPageLinkState(itemEl, linkEl, url) {
@@ -237,47 +227,6 @@ async function loadReviewsPage(stationId, url) {
     }
 }
 
-/**
- * Checks whether the current EV owner already has an active session
- * (waiting or charging) at this station and shows that status instead of
- * the "Start Charging Here" button, so they can't double-join.
- * GET /api/sessions?station_id={id} already scopes to the requesting
- * user's own sessions for an ev_owner (ChargingSessionController::
- * index()), so no extra filtering by user is needed here - only by
- * status, since the endpoint has no combined waiting-or-charging filter.
- *
- * Deliberately doesn't show an exact queue position (e.g. "#2 in the
- * queue") - this endpoint only ever returns the requesting user's own
- * sessions, never other users' waiting sessions at the same station, so
- * there's no accurate way to compute a personal rank from it. Showing a
- * fabricated number would be worse than not showing one.
- */
-async function loadMySessionStatus(stationId) {
-    const loading = document.getElementById('charging-session-loading');
-    const statusEl = document.getElementById('charging-session-status');
-    const startBtn = document.getElementById('start-charging-btn');
-
-    loading.classList.remove('d-none');
-    statusEl.classList.add('d-none');
-    startBtn.classList.add('d-none');
-
-    const response = await apiFetch(`/api/sessions?station_id=${stationId}`);
-    loading.classList.add('d-none');
-
-    const sessions = response.ok ? (await response.json()).data ?? [] : [];
-    const mySession = sessions.find((s) => s.status === 'waiting' || s.status === 'charging');
-
-    if (!mySession) {
-        startBtn.classList.remove('d-none');
-        return;
-    }
-
-    statusEl.textContent = mySession.status === 'charging'
-        ? `You're charging on Slot ${mySession.slot?.slot_code ?? 'unknown'} (started ${formatDateTime(mySession.started_at)}).`
-        : `You're waiting for a slot to open up (queued since ${formatDateTime(mySession.queued_at)}).`;
-    statusEl.classList.remove('d-none');
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('station-app');
     if (!container) return;
@@ -322,53 +271,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadReviewsPage(stationId);
 
-    loadMySessionStatus(stationId);
-
-    const startChargingBtn = document.getElementById('start-charging-btn');
-    const startChargingBtnLabel = document.getElementById('start-charging-btn-label');
-    const chargingErrorBox = document.getElementById('charging-session-error');
-
-    startChargingBtn.addEventListener('click', async () => {
-        chargingErrorBox.classList.add('d-none');
-        startChargingBtn.disabled = true;
-        startChargingBtnLabel.textContent = 'Starting...';
-
-        try {
-            // No slot picker - the backend auto-assigns the first available
-            // slot, or queues as waiting if none are free. Only the user's
-            // default vehicle (if any) is sent; there's no vehicle picker
-            // in v1, and vehicle_id is nullable server-side.
-            const vehiclesResponse = await apiFetch('/api/vehicles');
-            const vehicles = vehiclesResponse.ok ? await vehiclesResponse.json() : [];
-            const defaultVehicle = vehicles.find((vehicle) => vehicle.is_default);
-
-            const response = await apiFetch(`/api/stations/${stationId}/sessions`, {
-                method: 'POST',
-                body: JSON.stringify(defaultVehicle ? { vehicle_id: defaultVehicle.id } : {}),
-            });
-
-            if (response.ok) {
-                // Refetch rather than optimistically patch the DOM - same
-                // "always refetch after mutation" discipline
-                // station-owner-stations-show.js's loadQueue() already
-                // uses. Also refreshes the Slots list and Queue length
-                // stat, both of which just became stale.
-                await loadMySessionStatus(stationId);
-                await loadStation(stationId);
-                return;
-            }
-
-            const data = await response.json().catch(() => ({}));
-            chargingErrorBox.textContent = data.message || 'Unable to start charging. Please try again.';
-            chargingErrorBox.classList.remove('d-none');
-        } catch (error) {
-            chargingErrorBox.textContent = 'Something went wrong. Please check your connection and try again.';
-            chargingErrorBox.classList.remove('d-none');
-        } finally {
-            startChargingBtn.disabled = false;
-            startChargingBtnLabel.textContent = 'Start Charging Here';
-        }
-    });
+    // Shared with Live Trip's own per-stop controls (see charging-session.js) -
+    // "always refetch after mutation" here also picks up the Slots list and
+    // Queue length stat via the loadStation() re-fetch, both of which just
+    // became stale.
+    const chargingControlRoot = document.getElementById('charging-control');
+    refreshChargingControl(chargingControlRoot, stationId);
+    attachStartChargingControl(chargingControlRoot, stationId, () => loadStation(stationId));
 
     favoriteBtn.addEventListener('click', async () => {
         triggerPulse(favoriteBtn);

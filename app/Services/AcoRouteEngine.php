@@ -42,6 +42,18 @@ class AcoRouteEngine
 
     private const MAX_STEPS = 40; // 98 nodes total; a sane route never needs more hops
 
+    // ACO is probabilistic - removing/graying out a well-connected station
+    // (e.g. it went Occupied) can turn an easy problem into a harder one
+    // that a single colony run doesn't always solve within its fixed
+    // ant/iteration budget, even though a feasible route genuinely exists.
+    // Measured directly against a real harder-than-usual case (a popular
+    // station occupied, forcing a longer alternate path): roughly a 40-60%
+    // per-attempt success rate, not near-100% like the easy case. Retrying
+    // a few times before giving up brings the odds of a false "no feasible
+    // route" down to a low single-digit percentage instead of surfacing a
+    // failure the very first unlucky attempt hits.
+    private const MAX_PLANNING_ATTEMPTS = 5;
+
     // --- Battery / charging behaviour ---
     private const CHARGE_TRIGGER_RATIO = 0.30; // charge once remaining range drops below 30% of max range
 
@@ -92,13 +104,37 @@ class AcoRouteEngine
 
         $this->loadGraph();
 
-        $best = $this->runColony($trip->origin_node_id, $trip->destination_node_id, $startingBatteryPercent);
+        $best = null;
+
+        for ($attempt = 0; $attempt < self::MAX_PLANNING_ATTEMPTS; $attempt++) {
+            // A fresh colony run each attempt, not a continuation - reset
+            // pheromone back to its initial level so a failed attempt's
+            // reinforcement doesn't bias the next one. The graph itself
+            // (nodes/adjacency) doesn't need reloading between attempts,
+            // since nothing about it changes mid-request.
+            if ($attempt > 0) {
+                $this->resetPheromone();
+            }
+
+            $best = $this->runColony($trip->origin_node_id, $trip->destination_node_id, $startingBatteryPercent);
+
+            if ($best !== null) {
+                break;
+            }
+        }
 
         if ($best === null) {
             throw new RouteNotFeasibleException('No feasible route found for this battery level and vehicle.');
         }
 
         return $this->persist($trip, $best, $previousRouteId, $reason);
+    }
+
+    private function resetPheromone(): void
+    {
+        foreach ($this->pheromone as $edgeId => $level) {
+            $this->pheromone[$edgeId] = self::PHEROMONE_INITIAL;
+        }
     }
 
     private function loadGraph(): void

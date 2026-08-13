@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ChargingSession;
 use App\Models\ChargingStation;
 use App\Models\TripRoute;
+use App\Models\UserNotification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -80,6 +81,15 @@ class ChargingSessionController extends Controller
             $slot->update(['status' => 'occupied']);
         }
 
+        if ($station->owner_user_id) {
+            UserNotification::create([
+                'user_id' => $station->owner_user_id,
+                'type' => 'Queue',
+                'message' => "{$request->user()->name} " . ($slot ? 'started charging' : 'joined the waiting queue')
+                    . " at \"{$station->name}\".",
+            ]);
+        }
+
         return response()->json($session->load(['station', 'slot']), 201);
     }
 
@@ -111,6 +121,12 @@ class ChargingSessionController extends Controller
             abort_if(! $slot, 422, 'No available slot to assign yet');
             $slot->update(['status' => 'occupied']);
             $session->update(['slot_id' => $slot->id, 'status' => 'charging', 'started_at' => now()]);
+
+            UserNotification::create([
+                'user_id' => $session->user_id,
+                'type' => 'Charging',
+                'message' => "You've been assigned Slot {$slot->slot_code} at \"{$session->station->name}\" - you can start charging now.",
+            ]);
         }
 
         if (in_array($data['status'], ['completed', 'cancelled'], true)) {
@@ -119,6 +135,17 @@ class ChargingSessionController extends Controller
                 'ended_at' => now(),
                 'energy_kwh' => $data['energy_kwh'] ?? $session->energy_kwh,
                 'payment_amount' => $data['payment_amount'] ?? $session->payment_amount,
+            ]);
+
+            // This endpoint can only ever be reached by the station's own
+            // owner or an admin (see the abort_unless above), never by the
+            // session's own EV owner - so this is always "someone else did
+            // this to your session," a genuinely useful thing to be told
+            // about, not an echo of the recipient's own action.
+            UserNotification::create([
+                'user_id' => $session->user_id,
+                'type' => 'Charging',
+                'message' => "Your charging session at \"{$session->station->name}\" has been {$data['status']}.",
             ]);
 
             if ($session->slot_id) {
@@ -135,6 +162,12 @@ class ChargingSessionController extends Controller
                 if ($freedSlot) {
                     $freedSlot->update(['status' => 'occupied']);
                     $next->update(['slot_id' => $freedSlot->id, 'status' => 'charging', 'started_at' => now()]);
+
+                    UserNotification::create([
+                        'user_id' => $next->user_id,
+                        'type' => 'Charging',
+                        'message' => "You've been assigned Slot {$freedSlot->slot_code} at \"{$session->station->name}\" - you can start charging now.",
+                    ]);
                 }
             }
         }

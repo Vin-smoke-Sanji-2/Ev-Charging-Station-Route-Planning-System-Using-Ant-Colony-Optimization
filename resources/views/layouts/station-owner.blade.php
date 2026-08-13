@@ -24,7 +24,9 @@
 
             <div class="dropdown ms-auto">
                 <button class="btn navbar-profile-btn dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <span class="navbar-profile-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
+                    <span class="navbar-profile-avatar{{ auth()->user()->avatar_url ? ' d-none' : '' }}" id="navbar-avatar-initial">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
+                    <img class="navbar-profile-avatar navbar-profile-avatar-img{{ auth()->user()->avatar_url ? '' : ' d-none' }}" id="navbar-avatar-img"
+                         alt="{{ auth()->user()->name }}" @if(auth()->user()->avatar_url) src="{{ auth()->user()->avatar_url }}" @endif>
                     <span class="d-none d-md-inline navbar-profile-name">{{ auth()->user()->name }}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
@@ -44,6 +46,7 @@
                 @foreach ([
                     ['route' => 'station-owner.overview', 'icon' => 'speedometer2', 'label' => 'Overview'],
                     ['route' => 'station-owner.stations', 'icon' => 'ev-station', 'label' => 'My Stations'],
+                    ['route' => 'station-owner.notifications', 'icon' => 'bell', 'label' => 'Notifications'],
                     ['route' => 'profile', 'icon' => 'person', 'label' => 'Profile'],
                 ] as $item)
                     <a class="nav-link {{ request()->routeIs($item['route']) ? 'active' : '' }}"

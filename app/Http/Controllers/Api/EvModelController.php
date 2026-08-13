@@ -13,6 +13,14 @@ class EvModelController extends Controller
         return response()->json(EvModel::orderBy('brand')->get());
     }
 
+    /**
+     * Reachable two ways: admin's own management screen (POST
+     * /admin/ev-models), and any authenticated user typing a model that
+     * isn't in My EVs' dropdown (POST /ev-models - see UserVehicleController's
+     * own doc comment on why a vehicle can't just carry free-text instead).
+     * Both routes hit this exact same method/validation - there's no
+     * separate, less-strict path for the non-admin case.
+     */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -22,6 +30,23 @@ class EvModelController extends Controller
             'max_range_km' => 'required|numeric|min:0',
             'connector_type' => 'required|string|max:50',
         ]);
+
+        // Case-insensitive find-or-create on brand+model - opening this up
+        // to every authenticated user (not just admin) means two different
+        // people typing "Tesla"/"Model 3" on two different days shouldn't
+        // silently produce two near-duplicate rows that both then show up
+        // in everyone's dropdown. Returns the existing row as-is (200) if
+        // one already matches, rather than creating a duplicate even if
+        // the submitted capacity/range/connector differ slightly - the
+        // first real entry wins, matching this project's established
+        // "duplicate-safe" precedent (stations:seed-file, RoadNodeLinker).
+        $existing = EvModel::whereRaw('LOWER(brand) = ?', [mb_strtolower($data['brand'])])
+            ->whereRaw('LOWER(model) = ?', [mb_strtolower($data['model'])])
+            ->first();
+
+        if ($existing) {
+            return response()->json($existing, 200);
+        }
 
         return response()->json(EvModel::create($data), 201);
     }

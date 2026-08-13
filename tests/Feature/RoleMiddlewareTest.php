@@ -158,4 +158,187 @@ class RoleMiddlewareTest extends TestCase
         $response->assertStatus(200)->assertViewIs('profile.index');
         $response->assertSee(route('station-owner.overview'), false);
     }
+
+    public function test_non_admin_is_redirected_from_admin_ev_owners_to_their_own_landing_page(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+        $stationOwner = $this->makeStationOwner();
+
+        $this->actingAs($evOwner)->get('/admin/ev-owners')->assertRedirect('/dashboard');
+        $this->actingAs($stationOwner)->get('/admin/ev-owners')->assertRedirect('/station-owner/overview');
+    }
+
+    public function test_admin_can_load_the_admin_ev_owners_page(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->get('/admin/ev-owners')
+            ->assertStatus(200)
+            ->assertViewIs('admin.ev-owners');
+    }
+
+    public function test_non_admin_is_redirected_from_admin_station_owners_to_their_own_landing_page(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+        $stationOwner = $this->makeStationOwner();
+
+        $this->actingAs($evOwner)->get('/admin/station-owners')->assertRedirect('/dashboard');
+        $this->actingAs($stationOwner)->get('/admin/station-owners')->assertRedirect('/station-owner/overview');
+    }
+
+    public function test_admin_can_load_the_admin_station_owners_page(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->get('/admin/station-owners')
+            ->assertStatus(200)
+            ->assertViewIs('admin.station-owners');
+    }
+
+    public function test_non_admin_is_redirected_from_admin_stations_to_their_own_landing_page(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+        $stationOwner = $this->makeStationOwner();
+
+        $this->actingAs($evOwner)->get('/admin/stations')->assertRedirect('/dashboard');
+        $this->actingAs($stationOwner)->get('/admin/stations')->assertRedirect('/station-owner/overview');
+    }
+
+    public function test_admin_can_load_the_admin_stations_page(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->get('/admin/stations')
+            ->assertStatus(200)
+            ->assertViewIs('admin.stations');
+    }
+
+    public function test_non_admin_is_redirected_from_admin_total_users_to_their_own_landing_page(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+        $stationOwner = $this->makeStationOwner();
+
+        $this->actingAs($evOwner)->get('/admin/total-users')->assertRedirect('/dashboard');
+        $this->actingAs($stationOwner)->get('/admin/total-users')->assertRedirect('/station-owner/overview');
+    }
+
+    public function test_admin_can_load_the_admin_total_users_page(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->get('/admin/total-users')
+            ->assertStatus(200)
+            ->assertViewIs('admin.total-users');
+    }
+
+    public function test_non_admin_is_redirected_from_admin_trips_to_their_own_landing_page(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+        $stationOwner = $this->makeStationOwner();
+
+        $this->actingAs($evOwner)->get('/admin/trips')->assertRedirect('/dashboard');
+        $this->actingAs($stationOwner)->get('/admin/trips')->assertRedirect('/station-owner/overview');
+    }
+
+    public function test_admin_can_load_the_admin_trips_page(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->get('/admin/trips')
+            ->assertStatus(200)
+            ->assertViewIs('admin.trips');
+    }
+
+    public function test_non_admin_is_redirected_from_admin_active_today_to_their_own_landing_page(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+        $stationOwner = $this->makeStationOwner();
+
+        $this->actingAs($evOwner)->get('/admin/active-today')->assertRedirect('/dashboard');
+        $this->actingAs($stationOwner)->get('/admin/active-today')->assertRedirect('/station-owner/overview');
+    }
+
+    public function test_admin_can_load_the_admin_active_today_page(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->get('/admin/active-today')
+            ->assertStatus(200)
+            ->assertViewIs('admin.active-today');
+    }
+
+    /**
+     * All three of these routes render the exact same shared
+     * notifications.index view (see that file's own doc comment) -
+     * layoutFor() is what actually varies the chrome per role, not a
+     * separate view per portal.
+     */
+    public function test_non_ev_owner_is_redirected_from_notifications_to_their_own_landing_page(): void
+    {
+        $stationOwner = $this->makeStationOwner();
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($stationOwner)->get('/notifications')->assertRedirect('/station-owner/overview');
+        $this->actingAs($admin)->get('/notifications')->assertRedirect('/admin/overview');
+    }
+
+    public function test_ev_owner_can_load_the_notifications_page(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+
+        $this->actingAs($evOwner)->get('/notifications')
+            ->assertStatus(200)
+            ->assertViewIs('notifications.index');
+    }
+
+    public function test_non_station_owner_is_redirected_from_station_owner_notifications_to_their_own_landing_page(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($evOwner)->get('/station-owner/notifications')->assertRedirect('/dashboard');
+        $this->actingAs($admin)->get('/station-owner/notifications')->assertRedirect('/admin/overview');
+    }
+
+    public function test_station_owner_can_load_the_station_owner_notifications_page(): void
+    {
+        $stationOwner = $this->makeStationOwner();
+
+        $this->actingAs($stationOwner)->get('/station-owner/notifications')
+            ->assertStatus(200)
+            ->assertViewIs('notifications.index');
+    }
+
+    /**
+     * Deliberately NOT gated by stationOwnerAccessDeniedMessage() like the
+     * two station-owner management routes - even a pending station owner
+     * should still be able to load their own notifications (see
+     * routes/web.php's own comment on this route).
+     */
+    public function test_a_pending_station_owner_can_still_load_their_notifications_page(): void
+    {
+        $stationOwner = $this->makeStationOwner(['status' => 'pending']);
+
+        $this->actingAs($stationOwner)->get('/station-owner/notifications')
+            ->assertStatus(200)
+            ->assertViewIs('notifications.index');
+    }
+
+    public function test_non_admin_is_redirected_from_admin_notifications_to_their_own_landing_page(): void
+    {
+        $evOwner = $this->makeUser(['role' => 'ev_owner']);
+        $stationOwner = $this->makeStationOwner();
+
+        $this->actingAs($evOwner)->get('/admin/notifications')->assertRedirect('/dashboard');
+        $this->actingAs($stationOwner)->get('/admin/notifications')->assertRedirect('/station-owner/overview');
+    }
+
+    public function test_admin_can_load_the_admin_notifications_page(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->get('/admin/notifications')
+            ->assertStatus(200)
+            ->assertViewIs('notifications.index');
+    }
 }

@@ -89,6 +89,24 @@ class ChargingStationTest extends TestCase
         $this->assertDatabaseHas('charging_stations', ['name' => 'My New Station', 'owner_user_id' => $owner->id]);
     }
 
+    public function test_creating_a_station_notifies_every_admin(): void
+    {
+        $admin = $this->makeAdmin();
+        $owner = $this->makeStationOwner();
+
+        $this->actingAs($owner)->postJson('/api/stations', [
+            'name' => 'My New Station',
+            'latitude' => 16.8,
+            'longitude' => 96.15,
+        ])->assertStatus(201);
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $admin->id,
+            'type' => 'Station',
+            'message' => '"My New Station" was submitted and is awaiting verification.',
+        ]);
+    }
+
     /**
      * Real gap found and fixed: store() used to leave every new station's
      * road_node_id null, silently unroutable (no Trip planning, no
@@ -226,6 +244,56 @@ class ChargingStationTest extends TestCase
         $this->actingAs($admin)->putJson("/api/stations/{$station->id}", ['name' => 'Admin Edited'])
             ->assertStatus(200)
             ->assertJsonPath('name', 'Admin Edited');
+    }
+
+    /**
+     * An approved listing shouldn't be silently mutable without the admin
+     * seeing the new data - editing an already-verified station as its own
+     * owner drops it back to 'pending' for re-review. Asserted against the
+     * real response and a fresh DB read, not just that the edit succeeded.
+     */
+    public function test_owner_editing_a_verified_station_reverts_it_to_pending(): void
+    {
+        $owner = $this->makeStationOwner();
+        $station = $this->makeStation($owner, ['verification_status' => 'verified']);
+
+        $response = $this->actingAs($owner)->putJson("/api/stations/{$station->id}", ['name' => 'Updated Name']);
+
+        $response->assertStatus(200)->assertJsonPath('verification_status', 'pending');
+        $this->assertSame('pending', $station->fresh()->verification_status);
+    }
+
+    /**
+     * An admin's own trusted edit should never trigger a re-review of
+     * itself - only an owner's edit does.
+     */
+    public function test_admin_editing_a_verified_station_does_not_revert_it_to_pending(): void
+    {
+        $owner = $this->makeStationOwner();
+        $admin = $this->makeAdmin();
+        $station = $this->makeStation($owner, ['verification_status' => 'verified']);
+
+        $response = $this->actingAs($admin)->putJson("/api/stations/{$station->id}", ['name' => 'Admin Edited']);
+
+        $response->assertStatus(200)->assertJsonPath('verification_status', 'verified');
+        $this->assertSame('verified', $station->fresh()->verification_status);
+    }
+
+    /**
+     * Regression guard: there's no "already pending" -> "still pending"
+     * toggle logic to accidentally trip up - editing a station that isn't
+     * currently verified leaves its verification_status exactly as-is,
+     * since there's no verified state to lose in the first place.
+     */
+    public function test_owner_editing_a_pending_station_does_not_change_its_verification_status(): void
+    {
+        $owner = $this->makeStationOwner();
+        $station = $this->makeStation($owner, ['verification_status' => 'pending']);
+
+        $response = $this->actingAs($owner)->putJson("/api/stations/{$station->id}", ['name' => 'Still Pending']);
+
+        $response->assertStatus(200)->assertJsonPath('verification_status', 'pending');
+        $this->assertSame('pending', $station->fresh()->verification_status);
     }
 
     public function test_only_admin_can_delete_a_station(): void

@@ -35,12 +35,22 @@
                 </div>
                 <div class="mb-3">
                     <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password" name="password" required>
-                    <div class="invalid-feedback" data-error-for="password"></div>
+                    <div class="input-group has-validation">
+                        <input type="password" class="form-control" id="password" name="password" required>
+                        <button type="button" class="input-group-text password-toggle-btn" data-target="password" aria-label="Show password">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <div class="invalid-feedback" data-error-for="password"></div>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label for="password_confirmation" class="form-label">Confirm password</label>
-                    <input type="password" class="form-control" id="password_confirmation" name="password_confirmation" required>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="password_confirmation" name="password_confirmation" required>
+                        <button type="button" class="input-group-text password-toggle-btn" data-target="password_confirmation" aria-label="Show password">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary w-100" id="register-submit">Sign up</button>
             </form>

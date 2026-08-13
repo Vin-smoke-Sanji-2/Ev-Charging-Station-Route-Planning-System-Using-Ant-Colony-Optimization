@@ -153,12 +153,22 @@ class ChargingStationController extends Controller
         );
     }
 
+    /**
+     * A station owner editing their own already-verified station drops it
+     * back to 'pending' for re-review - an approved listing shouldn't be
+     * silently mutable without the admin seeing the new data. Deliberately
+     * scoped to only this method (not ChargingSlotController) and only to
+     * the owner's own edits (never an admin's - an admin's own trusted
+     * edit shouldn't trigger a re-review of itself), and only when the
+     * station is currently 'verified' - editing an already pending/
+     * rejected/suspended station leaves its status untouched, since
+     * there's no "verified" state to lose in the first place.
+     */
     public function update(Request $request, ChargingStation $station)
     {
-        abort_unless(
-            $request->user()->isAdmin() || $station->owner_user_id === $request->user()->id,
-            403
-        );
+        $isAdmin = $request->user()->isAdmin();
+
+        abort_unless($isAdmin || $station->owner_user_id === $request->user()->id, 403);
 
         $data = $request->validate([
             'name' => 'sometimes|string|max:255',
@@ -169,6 +179,10 @@ class ChargingStationController extends Controller
             'charging_speed' => 'sometimes|nullable|string|max:100',
             'operating_hours' => 'sometimes|nullable|string|max:100',
         ]);
+
+        if (! $isAdmin && count($data) > 0 && $station->verification_status === 'verified') {
+            $data['verification_status'] = 'pending';
+        }
 
         $station->update($data);
 

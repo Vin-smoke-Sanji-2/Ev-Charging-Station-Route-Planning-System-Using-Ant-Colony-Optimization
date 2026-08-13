@@ -8,8 +8,18 @@ function formatNumber(value, unit) {
     return value === null || value === undefined ? '—' : `${Number(value).toLocaleString()} ${unit}`;
 }
 
-function formatCurrency(value) {
-    return value === null || value === undefined ? '—' : `${Number(value).toLocaleString()} MMK`;
+// total_duration_min comes back from the backend in minutes (it's summed
+// from real per-edge driving time plus charging/wait time in minutes) -
+// shown here as "X hr Y min" rather than decimal hours, so a multi-hour
+// trip reads as "16 hr 18 min" instead of "976.1 min" or "16.3 hr".
+function formatDuration(minutes) {
+    if (minutes === null || minutes === undefined) return '—';
+    const total = Math.round(Number(minutes));
+    const hrs = Math.floor(total / 60);
+    const mins = total % 60;
+    if (hrs === 0) return `${mins} min`;
+    if (mins === 0) return `${hrs} hr`;
+    return `${hrs} hr ${mins} min`;
 }
 
 function statusBadgeClass(status) {
@@ -93,8 +103,7 @@ async function loadTrip(tripId) {
     statusBadge.className = `badge-btn-match ${statusBadgeClass(route?.status)}`;
 
     document.getElementById('stat-distance').textContent = formatNumber(route?.total_distance_km, 'km');
-    document.getElementById('stat-duration').textContent = formatNumber(route?.total_duration_min, 'min');
-    document.getElementById('stat-cost').textContent = formatCurrency(route?.estimated_cost);
+    document.getElementById('stat-duration').textContent = formatDuration(route?.total_duration_min);
     document.getElementById('stat-stops').textContent = stops.length;
 
     renderStops(stops);
