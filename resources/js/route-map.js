@@ -153,7 +153,8 @@ export function renderStopListItem(stop, { showWaitTime = false, showReachedStat
 
     const chargingControl = showStartChargingButton && station
         ? `
-            <div class="charging-control mt-2 pt-2 border-top" data-role="stop-charging-control" data-station-id="${station.id}">
+            <div class="charging-control mt-2 pt-2 border-top" data-role="stop-charging-control" data-station-id="${station.id}"
+                 data-has-slots="${station.total_slots_count ? '1' : '0'}">
                 <div class="text-muted small" data-role="loading">Checking your charging status...</div>
                 <p class="mb-1 small d-none" data-role="status"></p>
                 <button type="button" class="btn btn-primary btn-sm d-none" data-role="start-btn">

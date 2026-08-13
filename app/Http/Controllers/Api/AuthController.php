@@ -4,17 +4,20 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Mail\LoginOtpMail;
+use App\Models\AdminLoginLog;
 use App\Models\LoginOtp;
 use App\Models\User;
 use App\Models\UserNotification;
 use App\Services\ChargingStationCreator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
@@ -153,6 +156,19 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
+        // Admin is a shared portal, not a personal account (unlike EV
+        // owner/station owner) - every admin login is logged here so the
+        // Dashboard can show which admin accessed it and when. Only admin
+        // logs this way; a station_owner also verifying OTP here never
+        // does, since this table is specifically the admin audit trail.
+        if ($user->role === 'admin') {
+            AdminLoginLog::create([
+                'user_id' => $user->id,
+                'ip_address' => $request->ip(),
+                'logged_in_at' => now(),
+            ]);
+        }
+
         return response()->json($user);
     }
 
@@ -178,8 +194,6 @@ class AuthController extends Controller
     {
         $code = LoginOtp::generateFor($user);
 
-        Mail::mailer('sendgrid')->to($user->email)->send(new LoginOtpMail($code));
-
         // Local-dev convenience only: SendGrid's API accepts a send to a
         // fake/nonexistent address without complaint (no synchronous
         // bounce), so there's otherwise no way to retrieve a code sent to
@@ -189,6 +203,45 @@ class AuthController extends Controller
         if (app()->environment('local')) {
             Log::info("Login OTP for {$user->email}: {$code}");
         }
+
+        // The real SendGrid API call is a live HTTP round-trip (measured
+        // ~2-3s locally) - deferred until after the HTTP response has
+        // already been sent to the browser via dispatch()->afterResponse(),
+        // so the OTP screen appears immediately instead of blocking on it.
+        // Deliberately NOT a real queued job that needs a worker process
+        // (no `php artisan queue:work` dependency) - the closure still runs
+        // inline in this same request lifecycle, just after the response
+        // bytes are flushed.
+        //
+        // The Cache::add() guard is load-bearing, not defensive fluff, and
+        // it MUST be an external store (not a captured PHP variable) -
+        // confirmed by direct investigation: dispatch(Closure) wraps the
+        // closure in CallQueuedClosure, which implements ShouldQueue, so
+        // Bus::dispatchSync() routes it through the real 'sync' queue
+        // connection (SyncQueue::push()), which serializes/unserializes
+        // the job even though it runs immediately - a by-reference
+        // "already sent" flag captured in the closure's use() list resets
+        // to its original value on every firing, since each firing
+        // deserializes a fresh copy. Separately (and independently
+        // load-bearing on its own),
+        // Illuminate\Foundation\Application::terminate() never clears its
+        // terminatingCallbacks array after running them, so on any process
+        // that survives across multiple requests - confirmed directly via
+        // Laravel's own test HTTP client, which calls kernel->terminate()
+        // after every call() within one test method, and which is also
+        // how Octane workers behave - every previously-registered
+        // afterResponse() closure fires again on each later request. A
+        // cache-backed idempotency key (unique per send, checked via the
+        // atomic Cache::add()) is unaffected by either problem, since it
+        // lives outside the closure's own serialized state.
+        $dispatchToken = (string) Str::uuid();
+        dispatch(function () use ($user, $code, $dispatchToken) {
+            if (! Cache::add("otp-mail-sent:{$dispatchToken}", true, now()->addMinutes(15))) {
+                return;
+            }
+
+            Mail::mailer('sendgrid')->to($user->email)->send(new LoginOtpMail($code));
+        })->afterResponse();
     }
 
     public function logout(Request $request)

@@ -21,18 +21,19 @@ class AdminDashboardTest extends TestCase
 
         $response->assertStatus(200)->assertJsonStructure([
             'total_users', 'total_stations', 'total_trips', 'active_today',
-            'pending_station_verifications', 'recent_registrations',
+            'pending_station_verifications', 'recent_registrations', 'recent_admin_logins',
         ]);
         $this->assertSame(1, $response->json('pending_station_verifications'));
     }
 
     /**
-     * Admin accounts aren't a role this admin portal manages or displays
-     * anywhere - excluded from Recent Registrations even when an admin is
-     * genuinely the most-recently-created user, so one never leaks into
-     * this widget just by being new.
+     * Reversed from the original design: a portal can have more than one
+     * admin, and a newly-registered admin account is exactly the kind of
+     * event Recent Registrations exists to surface - so, unlike
+     * active_today/users()/stations() (still admin-excluded, unrelated to
+     * this widget), admin accounts now DO appear here.
      */
-    public function test_admin_account_never_appears_in_recent_registrations(): void
+    public function test_admin_account_appears_in_recent_registrations(): void
     {
         $admin = $this->makeAdmin();
         $newestAdmin = $this->makeAdmin(['name' => 'Newest Admin']);
@@ -41,7 +42,23 @@ class AdminDashboardTest extends TestCase
         $response = $this->actingAs($admin)->getJson('/api/admin/dashboard');
 
         $names = collect($response->json('recent_registrations'))->pluck('name');
-        $this->assertFalse($names->contains('Newest Admin'));
+        $this->assertTrue($names->contains('Newest Admin'));
+    }
+
+    public function test_recent_admin_logins_are_returned_newest_first_with_the_logging_in_admins_name(): void
+    {
+        $admin = $this->makeAdmin(['name' => 'First Admin']);
+        $secondAdmin = $this->makeAdmin(['name' => 'Second Admin']);
+
+        \App\Models\AdminLoginLog::create(['user_id' => $admin->id, 'ip_address' => '10.0.0.1', 'logged_in_at' => now()->subMinutes(5)]);
+        \App\Models\AdminLoginLog::create(['user_id' => $secondAdmin->id, 'ip_address' => '10.0.0.2', 'logged_in_at' => now()]);
+
+        $response = $this->actingAs($admin)->getJson('/api/admin/dashboard');
+
+        $logins = $response->json('recent_admin_logins');
+        $this->assertCount(2, $logins);
+        $this->assertSame('Second Admin', $logins[0]['user']['name']);
+        $this->assertSame('First Admin', $logins[1]['user']['name']);
     }
 
     public function test_non_admin_cannot_view_dashboard_stats(): void

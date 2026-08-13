@@ -259,6 +259,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 targetLabel: station.name,
                 targetNodeId: station.road_node_id,
             });
+
+            // hasSlots needs the real station.slots array, so this waits
+            // for the first loadStation() resolution rather than running
+            // in parallel with it like the rest of this block does -
+            // "Shared with Live Trip's own per-stop controls (see
+            // charging-session.js) - always refetch after mutation here
+            // also picks up the Slots list and Queue length stat via the
+            // loadStation() re-fetch, both of which just became stale."
+            const chargingControlRoot = document.getElementById('charging-control');
+            const hasSlots = (station.slots?.length ?? 0) > 0;
+            refreshChargingControl(chargingControlRoot, stationId, hasSlots);
+            attachStartChargingControl(chargingControlRoot, stationId, () => loadStation(stationId), hasSlots);
         })
         .catch(() => {
             document.getElementById('station-loading').classList.add('d-none');
@@ -270,14 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshFavoriteButton(stationId);
 
     loadReviewsPage(stationId);
-
-    // Shared with Live Trip's own per-stop controls (see charging-session.js) -
-    // "always refetch after mutation" here also picks up the Slots list and
-    // Queue length stat via the loadStation() re-fetch, both of which just
-    // became stale.
-    const chargingControlRoot = document.getElementById('charging-control');
-    refreshChargingControl(chargingControlRoot, stationId);
-    attachStartChargingControl(chargingControlRoot, stationId, () => loadStation(stationId));
 
     favoriteBtn.addEventListener('click', async () => {
         triggerPulse(favoriteBtn);

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\LoginOtpMail;
+use App\Models\AdminLoginLog;
 use App\Models\LoginOtp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -347,6 +348,72 @@ class AuthTest extends TestCase
 
         $response->assertStatus(200)->assertJsonPath('email', 'otp-flow@example.com');
         $this->assertAuthenticatedAs($admin);
+    }
+
+    /**
+     * Admin is a shared portal, not a personal account - every successful
+     * admin login is logged (AdminLoginLog) so the Dashboard can show who
+     * accessed it and when.
+     */
+    public function test_admin_login_via_otp_creates_a_login_log_entry(): void
+    {
+        Mail::fake();
+        $admin = $this->makeAdmin(['email' => 'log-me@example.com', 'password' => 'secret123']);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'log-me@example.com',
+            'password' => 'secret123',
+        ])->assertStatus(200);
+
+        $code = null;
+        Mail::assertSent(LoginOtpMail::class, function ($mail) use (&$code) {
+            $code = $mail->code;
+
+            return true;
+        });
+
+        $this->assertDatabaseCount('admin_login_logs', 0);
+
+        $this->postJson('/api/auth/verify-otp', [
+            'email' => 'log-me@example.com',
+            'code' => $code,
+        ])->assertStatus(200);
+
+        $this->assertDatabaseCount('admin_login_logs', 1);
+        $log = AdminLoginLog::first();
+        $this->assertSame($admin->id, $log->user_id);
+        $this->assertNotNull($log->logged_in_at);
+    }
+
+    /**
+     * station_owner also authenticates through verify-otp (it's in
+     * OTP_REQUIRED_ROLES too), but admin_login_logs is specifically the
+     * admin audit trail - a station owner's own login must never write a
+     * row here.
+     */
+    public function test_station_owner_login_via_otp_does_not_create_admin_login_log(): void
+    {
+        Mail::fake();
+        $this->makeStationOwner(['email' => 'not-admin@example.com', 'password' => 'secret123']);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'not-admin@example.com',
+            'password' => 'secret123',
+        ])->assertStatus(200);
+
+        $code = null;
+        Mail::assertSent(LoginOtpMail::class, function ($mail) use (&$code) {
+            $code = $mail->code;
+
+            return true;
+        });
+
+        $this->postJson('/api/auth/verify-otp', [
+            'email' => 'not-admin@example.com',
+            'code' => $code,
+        ])->assertStatus(200);
+
+        $this->assertDatabaseCount('admin_login_logs', 0);
     }
 
     public function test_verify_otp_with_wrong_code_is_rejected(): void

@@ -10,9 +10,18 @@ class UserNotificationController extends Controller
 {
     public function index(Request $request)
     {
-        return response()->json(
-            $request->user()->appNotifications()->latest()->paginate(20)
-        );
+        $query = $request->user()->appNotifications()->latest();
+
+        // ?is_read=0 is how the shared sidebar badge (notification-badge.js)
+        // asks "how many unread do I have" - it only ever needs the
+        // paginator's own `total`, not the actual rows, so a plain filtered
+        // count via the existing paginate() call is enough; no separate
+        // "unread count" endpoint needed.
+        if ($request->has('is_read')) {
+            $query->where('is_read', $request->boolean('is_read'));
+        }
+
+        return response()->json($query->paginate(20));
     }
 
     public function markRead(Request $request, UserNotification $notification)

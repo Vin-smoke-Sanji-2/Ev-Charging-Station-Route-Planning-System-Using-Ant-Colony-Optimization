@@ -49,9 +49,12 @@
                     ['route' => 'station-owner.notifications', 'icon' => 'bell', 'label' => 'Notifications'],
                     ['route' => 'profile', 'icon' => 'person', 'label' => 'Profile'],
                 ] as $item)
-                    <a class="nav-link {{ request()->routeIs($item['route']) ? 'active' : '' }}"
+                    <a class="nav-link d-flex align-items-center justify-content-between {{ request()->routeIs($item['route']) ? 'active' : '' }}"
                        href="{{ route($item['route']) }}">
-                        <i class="bi bi-{{ $item['icon'] }}"></i> {{ $item['label'] }}
+                        <span><i class="bi bi-{{ $item['icon'] }}"></i> {{ $item['label'] }}</span>
+                        @if (str_contains($item['route'], 'notifications'))
+                            <span class="badge rounded-pill sidebar-notif-badge d-none" id="sidebar-notif-badge"></span>
+                        @endif
                     </a>
                 @endforeach
                 <a class="nav-link text-danger" href="#" data-logout>

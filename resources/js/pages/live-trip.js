@@ -156,8 +156,9 @@ function renderStopsList(stops) {
     // just the next unreached one (see the module doc comment above).
     list.querySelectorAll('[data-role="stop-charging-control"]').forEach((root) => {
         const stationId = root.dataset.stationId;
-        refreshChargingControl(root, stationId);
-        attachStartChargingControl(root, stationId, refreshLiveTripData);
+        const hasSlots = root.dataset.hasSlots === '1';
+        refreshChargingControl(root, stationId, hasSlots);
+        attachStartChargingControl(root, stationId, refreshLiveTripData, hasSlots);
     });
 }
 

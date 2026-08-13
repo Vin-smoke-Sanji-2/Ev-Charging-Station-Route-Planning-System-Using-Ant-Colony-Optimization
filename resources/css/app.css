@@ -800,6 +800,18 @@ a:focus-visible {
     outline-offset: -2px;
 }
 
+/* Unread-count badge on the Notifications nav link (all 3 portals - see
+   notification-badge.js). Bootstrap's own semantic red, not a brand token -
+   "something needs your attention" is the same category of signal as this
+   app's other destructive/urgent uses of red, not a decorative accent. */
+.sidebar-notif-badge {
+    background-color: var(--bs-danger);
+    font-size: 0.7rem;
+    font-weight: 700;
+    min-width: 1.35rem;
+    padding: 0.25em 0.45em;
+}
+
 /* Logout is deliberately still Bootstrap's plain .text-danger - a
    destructive/session-ending action, not a brand-colored nav item. */
 

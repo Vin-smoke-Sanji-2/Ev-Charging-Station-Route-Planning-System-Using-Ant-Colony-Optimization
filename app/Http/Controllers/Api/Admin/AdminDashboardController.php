@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminLoginLog;
 use App\Models\ChargingStation;
 use App\Models\TripRequest;
 use App\Models\User;
@@ -47,11 +48,21 @@ class AdminDashboardController extends Controller
             // reason recent_registrations already is.
             'active_today' => User::where('role', '!=', 'admin')->whereDate('updated_at', today())->count(),
             'pending_station_verifications' => ChargingStation::where('verification_status', 'pending')->count(),
-            // Admin accounts aren't a role this portal manages/displays
-            // anywhere else (see users() below) - excluded here too so one
-            // never surfaces in the Recent Registrations widget just
-            // because it happens to be among the 5 newest rows.
-            'recent_registrations' => User::where('role', '!=', 'admin')->latest()->limit(5)->get(['id', 'name', 'role', 'created_at']),
+            // Admin accounts ARE included here, deliberately, unlike
+            // active_today/users()/stations() above and below - this portal
+            // can have more than one admin, and a newly-registered admin
+            // account is exactly the kind of event this widget exists to
+            // surface. This reverses an earlier design decision that
+            // excluded admins from every list in this controller; that
+            // exclusion still holds everywhere else, just not here.
+            'recent_registrations' => User::latest()->limit(5)->get(['id', 'name', 'role', 'created_at']),
+            // Admin is a shared portal (not a personal account like an EV
+            // owner/station owner), so this is the audit trail for who
+            // accessed it and when - written by AuthController::verifyOtp()
+            // on every successful admin login. Latest 10, same
+            // "quick snapshot" shape as recent_registrations above, not a
+            // full paginated history page.
+            'recent_admin_logins' => AdminLoginLog::with('user:id,name')->latest('logged_in_at')->limit(10)->get(),
         ]);
     }
 

@@ -1,4 +1,5 @@
 import { apiFetch } from '../api.js';
+import { updateNotificationBadge } from '../notification-badge.js';
 
 function formatDate(iso) {
     if (!iso) return '—';
@@ -147,11 +148,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const stillHasUnread = currentPageData?.data.some((n) => !n.is_read);
         markAllBtn.disabled = !stillHasUnread;
+
+        await updateNotificationBadge();
     });
 
     markAllBtn.addEventListener('click', async () => {
         markAllBtn.disabled = true;
         await apiFetch('/api/notifications/read-all', { method: 'PUT' });
         await loadPage(lastLoadedUrl);
+        await updateNotificationBadge();
     });
 });

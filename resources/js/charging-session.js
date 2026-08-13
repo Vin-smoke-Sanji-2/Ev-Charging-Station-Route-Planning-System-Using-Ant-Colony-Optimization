@@ -23,11 +23,30 @@ function formatDateTime(iso) {
  * `root` is any element containing four children marked with
  * `data-role="loading"|"status"|"start-btn"|"error"` - Station Detail has
  * exactly one such root on the page; Live Trip renders one per stop.
+ *
+ * @param {boolean} [hasSlots] - false for a station with zero
+ *   `charging_slots` rows configured at all (not "zero *available*
+ *   right now" - that's the normal charging/waiting distinction the rest
+ *   of this function already handles). A slotless station can never
+ *   assign a session to anything, so joining its queue would just wait
+ *   forever - the button is hidden rather than offering an action that
+ *   can never actually succeed. Skips the network call entirely, since
+ *   there's nothing meaningful to check.
  */
-export async function refreshChargingControl(root, stationId) {
+export async function refreshChargingControl(root, stationId, hasSlots = true) {
     const loadingEl = root.querySelector('[data-role="loading"]');
     const statusEl = root.querySelector('[data-role="status"]');
     const startBtn = root.querySelector('[data-role="start-btn"]');
+
+    if (!hasSlots) {
+        loadingEl?.classList.add('d-none');
+        startBtn?.classList.add('d-none');
+        if (statusEl) {
+            statusEl.textContent = 'No charging slots have been set up at this station yet.';
+            statusEl.classList.remove('d-none');
+        }
+        return null;
+    }
 
     loadingEl?.classList.remove('d-none');
     statusEl?.classList.add('d-none');
@@ -65,8 +84,13 @@ export async function refreshChargingControl(root, stationId) {
  *   successful start AND after this control's own status refresh, so the
  *   caller can refresh anything else that just went stale (e.g. Station
  *   Detail's slot list, or Live Trip's stop availability counts).
+ * @param {boolean} [hasSlots] - see refreshChargingControl()'s own doc
+ *   comment. No listener is attached at all when false - the button is
+ *   already hidden, so this is just belt-and-suspenders.
  */
-export function attachStartChargingControl(root, stationId, onSuccess) {
+export function attachStartChargingControl(root, stationId, onSuccess, hasSlots = true) {
+    if (!hasSlots) return;
+
     const startBtn = root.querySelector('[data-role="start-btn"]');
     const errorEl = root.querySelector('[data-role="error"]');
     if (!startBtn) return;

@@ -45,6 +45,25 @@ class UserNotificationTest extends TestCase
         $this->assertDatabaseHas('user_notifications', ['id' => $notification->id, 'is_read' => false]);
     }
 
+    /**
+     * The sidebar unread badge (notification-badge.js) only needs this
+     * filtered count - ?is_read=0's paginator `total` is the whole reason
+     * this filter exists.
+     */
+    public function test_index_can_filter_by_is_read(): void
+    {
+        $user = $this->makeUser();
+        $user->appNotifications()->create(['type' => 'info', 'message' => 'Read one', 'is_read' => true]);
+        $user->appNotifications()->create(['type' => 'info', 'message' => 'Unread one', 'is_read' => false]);
+        $user->appNotifications()->create(['type' => 'info', 'message' => 'Unread two', 'is_read' => false]);
+
+        $unread = $this->actingAs($user)->getJson('/api/notifications?is_read=0');
+        $unread->assertStatus(200)->assertJsonPath('total', 2);
+
+        $read = $this->actingAs($user)->getJson('/api/notifications?is_read=1');
+        $read->assertStatus(200)->assertJsonPath('total', 1);
+    }
+
     public function test_mark_all_read_only_affects_own_notifications(): void
     {
         $userA = $this->makeUser();

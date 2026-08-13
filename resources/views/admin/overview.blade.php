@@ -77,6 +77,21 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Admin is a shared Dashboard, not a personal account like an
+                 EV owner/station owner's own portal - this is the audit
+                 trail for which admin logged in and when. --}}
+            <div class="row g-3 mt-1">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <h6 class="text-uppercase small fw-semibold text-muted mb-3">Recent Admin Logins</h6>
+                            <ul class="list-group list-group-flush" id="admin-login-history-list"></ul>
+                            <p class="text-muted small mb-0 d-none" id="admin-login-history-empty">No admin logins recorded yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 @endsection

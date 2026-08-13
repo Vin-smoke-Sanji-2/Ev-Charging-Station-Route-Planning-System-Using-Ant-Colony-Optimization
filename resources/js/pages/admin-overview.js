@@ -1,5 +1,7 @@
 import { apiFetch } from '../api.js';
 
+const ROLE_LABELS = { ev_owner: 'EV Owner', station_owner: 'Station Owner', admin: 'Admin' };
+
 function formatDate(iso) {
     if (!iso) return '—';
     return new Date(iso).toLocaleString(undefined, {
@@ -18,7 +20,19 @@ function registrationItem(user) {
                 <div class="fw-semibold">${user.name}</div>
                 <div class="text-muted small">${formatDate(user.created_at)}</div>
             </div>
-            <span class="badge bg-brand">${user.role}</span>
+            <span class="badge bg-brand badge-status">${ROLE_LABELS[user.role] || user.role}</span>
+        </li>
+    `;
+}
+
+function loginHistoryItem(entry) {
+    const name = entry.user ? entry.user.name : 'Deleted admin account';
+    return `
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+                <div class="fw-semibold">${name}</div>
+                <div class="text-muted small">${formatDate(entry.logged_in_at)}${entry.ip_address ? ` &middot; ${entry.ip_address}` : ''}</div>
+            </div>
         </li>
     `;
 }
@@ -64,5 +78,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
         empty.classList.add('d-none');
         list.innerHTML = registrations.map(registrationItem).join('');
+    }
+
+    const loginList = document.getElementById('admin-login-history-list');
+    const loginEmpty = document.getElementById('admin-login-history-empty');
+    const logins = stats.recent_admin_logins || [];
+
+    if (logins.length === 0) {
+        loginEmpty.classList.remove('d-none');
+        loginList.innerHTML = '';
+    } else {
+        loginEmpty.classList.add('d-none');
+        loginList.innerHTML = logins.map(loginHistoryItem).join('');
     }
 });
