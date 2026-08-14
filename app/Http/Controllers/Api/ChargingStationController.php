@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ChargingStation;
 use App\Services\ChargingStationCreator;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class ChargingStationController extends Controller
@@ -189,10 +190,56 @@ class ChargingStationController extends Controller
         return response()->json($station->fresh());
     }
 
+    /**
+     * Two real FK risks on this table, handled separately since they need
+     * different responses:
+     *
+     * 1. route_charging_stops.station_id is restrictOnDelete() - a station
+     *    that was ever used as a real trip's charging stop can NEVER be
+     *    deleted (the DB itself would refuse it). Checked up front so this
+     *    is a clean 422 with a real message, not a raw unhandled
+     *    QueryException surfacing as a 500 - and re-checked via a
+     *    try/catch around the actual delete() below as a defense-in-depth
+     *    safety net against a route stop being created in the gap between
+     *    this check and that call.
+     * 2. charging_slots/charging_sessions/favorite_stations/reviews are
+     *    all cascadeOnDelete() on this table - a delete that's otherwise
+     *    allowed would silently destroy that data with zero warning.
+     *    Slots and favorites are reconstructable/low-stakes and aren't
+     *    warned about; charging_sessions and reviews are real historical/
+     *    user-generated data, so the admin must see the real counts and
+     *    explicitly confirm before it happens. The first call (no
+     *    `confirmed` param) always stops here and reports what would be
+     *    lost, without deleting anything; only a second, explicit
+     *    `confirmed=true` call actually proceeds.
+     */
     public function destroy(Request $request, ChargingStation $station)
     {
         abort_unless($request->user()->isAdmin(), 403);
-        $station->delete();
+
+        abort_if(
+            $station->routeStops()->exists(),
+            422,
+            'This station cannot be deleted because it has trip history (it was used as a charging stop on at least one route). Stations with route history can never be deleted.'
+        );
+
+        $sessionsCount = $station->sessions()->count();
+        $reviewsCount = $station->reviews()->count();
+
+        if (($sessionsCount > 0 || $reviewsCount > 0) && ! $request->boolean('confirmed')) {
+            return response()->json([
+                'requires_confirmation' => true,
+                'sessions_count' => $sessionsCount,
+                'reviews_count' => $reviewsCount,
+                'message' => "This will permanently delete {$sessionsCount} charging session(s) and {$reviewsCount} review(s). This cannot be undone.",
+            ], 422);
+        }
+
+        try {
+            $station->delete();
+        } catch (QueryException $e) {
+            abort(422, 'This station cannot be deleted because it has trip history.');
+        }
 
         return response()->json(['message' => 'Station removed']);
     }

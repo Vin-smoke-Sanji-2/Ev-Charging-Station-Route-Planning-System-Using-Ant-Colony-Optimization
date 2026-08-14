@@ -94,6 +94,28 @@ class EvModelTest extends TestCase
         $this->assertDatabaseMissing('ev_models', ['id' => $evModel->id]);
     }
 
+    /**
+     * user_vehicles.ev_model_id is restrictOnDelete() - deleting an in-use
+     * model would otherwise throw a raw, unhandled QueryException (a 500),
+     * not a clean 4xx. Confirms both the clean response AND that the
+     * message reports the real, accurate vehicle count.
+     */
+    public function test_admin_cannot_delete_an_ev_model_currently_in_use(): void
+    {
+        $admin = $this->makeAdmin();
+        $evModel = $this->makeEvModel();
+        $owner1 = $this->makeUser();
+        $owner2 = $this->makeUser();
+        $this->makeVehicle($owner1, $evModel);
+        $this->makeVehicle($owner2, $evModel);
+
+        $response = $this->actingAs($admin)->deleteJson("/api/admin/ev-models/{$evModel->id}");
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('2 vehicle(s)', $response->json('message'));
+        $this->assertDatabaseHas('ev_models', ['id' => $evModel->id]);
+    }
+
     public function test_non_admin_cannot_delete_ev_model(): void
     {
         $evOwner = $this->makeUser();

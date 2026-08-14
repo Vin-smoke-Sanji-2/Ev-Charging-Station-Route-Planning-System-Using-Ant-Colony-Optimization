@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Review;
+use App\Models\RouteChargingStop;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Concerns\CreatesTestData;
 use Tests\TestCase;
@@ -311,6 +313,111 @@ class ChargingStationTest extends TestCase
             ->assertStatus(200);
 
         $this->assertDatabaseMissing('charging_stations', ['id' => $station->id]);
+    }
+
+    /**
+     * route_charging_stops.station_id is restrictOnDelete() - a station
+     * that was ever used as a real trip's charging stop can never be
+     * deleted, matching the DB constraint itself. Confirms a clean 422
+     * (not a raw 500 from an unhandled QueryException) and that nothing
+     * was actually deleted.
+     */
+    public function test_deleting_a_station_with_route_history_is_blocked(): void
+    {
+        $admin = $this->makeAdmin();
+        $station = $this->makeStation();
+        $rider = $this->makeUser();
+        $origin = $this->makeRoadNode(['name' => 'Origin']);
+        $destination = $this->makeRoadNode(['name' => 'Destination']);
+        $trip = $this->makeTripRequest($rider, $origin, $destination);
+        $route = $this->makeTripRoute($trip);
+        RouteChargingStop::create(['trip_route_id' => $route->id, 'station_id' => $station->id, 'sequence_no' => 0]);
+
+        $response = $this->actingAs($admin)->deleteJson("/api/admin/stations/{$station->id}");
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('trip history', $response->json('message'));
+        $this->assertDatabaseHas('charging_stations', ['id' => $station->id]);
+    }
+
+    /**
+     * charging_sessions/reviews are cascadeOnDelete() on this table - a
+     * delete that's otherwise allowed would silently destroy real
+     * historical/user-generated data with zero warning. The first call
+     * (no `confirmed` param) must stop here, report the exact counts, and
+     * delete nothing.
+     */
+    public function test_deleting_a_station_with_sessions_and_reviews_requires_confirmation_with_accurate_counts(): void
+    {
+        $admin = $this->makeAdmin();
+        $station = $this->makeStation();
+        $rider1 = $this->makeUser();
+        $rider2 = $this->makeUser();
+        $rider3 = $this->makeUser();
+        $this->makeSession($station, $rider1);
+        $this->makeSession($station, $rider2);
+        $this->makeSession($station, $rider3);
+        Review::create(['user_id' => $rider1->id, 'station_id' => $station->id, 'rating' => 5, 'comment' => 'Great']);
+        Review::create(['user_id' => $rider2->id, 'station_id' => $station->id, 'rating' => 4, 'comment' => 'Good']);
+
+        $response = $this->actingAs($admin)->deleteJson("/api/admin/stations/{$station->id}");
+
+        $response->assertStatus(422)
+            ->assertJsonPath('requires_confirmation', true)
+            ->assertJsonPath('sessions_count', 3)
+            ->assertJsonPath('reviews_count', 2);
+        $this->assertStringContainsString('3 charging session', $response->json('message'));
+        $this->assertStringContainsString('2 review', $response->json('message'));
+        $this->assertDatabaseHas('charging_stations', ['id' => $station->id]);
+        $this->assertDatabaseCount('charging_sessions', 3);
+        $this->assertDatabaseCount('reviews', 2);
+    }
+
+    /**
+     * The confirmed=true follow-up call actually deletes, and the
+     * cascade-linked sessions/reviews genuinely go with it (not just the
+     * station row) - proving the confirmation gate was real, not
+     * decorative.
+     */
+    public function test_deleting_a_station_with_sessions_and_reviews_succeeds_when_confirmed(): void
+    {
+        $admin = $this->makeAdmin();
+        $station = $this->makeStation();
+        $rider = $this->makeUser();
+        $this->makeSession($station, $rider);
+        Review::create(['user_id' => $rider->id, 'station_id' => $station->id, 'rating' => 5, 'comment' => 'Great']);
+
+        $response = $this->actingAs($admin)->deleteJson("/api/admin/stations/{$station->id}?confirmed=true");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('charging_stations', ['id' => $station->id]);
+        $this->assertDatabaseCount('charging_sessions', 0);
+        $this->assertDatabaseCount('reviews', 0);
+    }
+
+    /**
+     * The route-history block is checked first and is absolute - a
+     * station with BOTH route history and sessions/reviews must still be
+     * blocked outright, never reaching (or being forceable past) the
+     * confirmation flow.
+     */
+    public function test_route_history_block_takes_precedence_over_confirmation(): void
+    {
+        $admin = $this->makeAdmin();
+        $station = $this->makeStation();
+        $rider = $this->makeUser();
+        $this->makeSession($station, $rider);
+        $origin = $this->makeRoadNode(['name' => 'Origin']);
+        $destination = $this->makeRoadNode(['name' => 'Destination']);
+        $trip = $this->makeTripRequest($rider, $origin, $destination);
+        $route = $this->makeTripRoute($trip);
+        RouteChargingStop::create(['trip_route_id' => $route->id, 'station_id' => $station->id, 'sequence_no' => 0]);
+
+        $response = $this->actingAs($admin)->deleteJson("/api/admin/stations/{$station->id}?confirmed=true");
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('trip history', $response->json('message'));
+        $this->assertDatabaseHas('charging_stations', ['id' => $station->id]);
     }
 
     public function test_index_flags_dc_only_station_correctly(): void

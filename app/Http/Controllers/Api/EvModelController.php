@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\EvModel;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class EvModelController extends Controller
@@ -66,9 +67,30 @@ class EvModelController extends Controller
         return response()->json($evModel->fresh());
     }
 
+    /**
+     * user_vehicles.ev_model_id is restrictOnDelete() - an in-use model
+     * can never be deleted (the DB itself would refuse it). Checked up
+     * front so this is a clean 422 with a real, specific count in the
+     * message, not a raw unhandled QueryException surfacing as a 500 -
+     * and re-checked via a try/catch around the actual delete() as a
+     * defense-in-depth safety net against a vehicle being created in the
+     * gap between this check and that call.
+     */
     public function destroy(EvModel $evModel)
     {
-        $evModel->delete();
+        $vehicleCount = $evModel->vehicles()->count();
+
+        abort_if(
+            $vehicleCount > 0,
+            422,
+            "This EV model cannot be deleted because {$vehicleCount} vehicle(s) currently use it."
+        );
+
+        try {
+            $evModel->delete();
+        } catch (QueryException $e) {
+            abort(422, 'This EV model cannot be deleted because it is currently in use.');
+        }
 
         return response()->json(['message' => 'EV model removed']);
     }

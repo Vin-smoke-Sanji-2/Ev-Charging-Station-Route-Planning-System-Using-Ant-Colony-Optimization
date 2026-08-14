@@ -91,9 +91,23 @@ function pendingCard(station) {
                     <button type="button" class="btn btn-danger btn-admin-action" data-action="reject" data-id="${station.id}" data-tab="pending">
                         <i class="bi bi-x-lg"></i> Reject
                     </button>
+                    ${deleteButton(station.id, 'pending')}
                 </div>
             </div>
         </div>
+    `;
+}
+
+// Delete is offered from every tab regardless of verification status -
+// deliberately separate from the verify/reject/suspend/reactivate status
+// actions above (which only ever move a station between statuses), never
+// removed from the row set the way those are once a status makes them
+// inapplicable.
+function deleteButton(stationId, tab) {
+    return `
+        <button type="button" class="btn btn-danger btn-admin-action" data-action="delete" data-id="${stationId}" data-tab="${tab}">
+            <i class="bi bi-trash"></i> Delete
+        </button>
     `;
 }
 
@@ -121,14 +135,17 @@ function verifiedCard(station) {
                     ${verificationBadge(station.verification_status)}
                 </div>
                 ${stationDetails(station)}
-                <div class="d-flex gap-3 mt-3">${action}</div>
+                <div class="d-flex gap-3 mt-3">${action} ${deleteButton(station.id, 'verified')}</div>
             </div>
         </div>
     `;
 }
 
-// Rejected is terminal - no action offered, matching the backend's
-// transition map (rejected has zero legal outgoing transitions).
+// Rejected is terminal for the verify/reject/suspend/reactivate status
+// workflow (matching the backend's transition map - zero legal outgoing
+// status transitions), but Delete is still offered here - a rejected
+// station is exactly the kind of row an admin would want to permanently
+// clear out.
 function rejectedCard(station) {
     return `
         <div class="card border-0 shadow-sm" data-station-card="${station.id}">
@@ -142,6 +159,7 @@ function rejectedCard(station) {
                     ${verificationBadge(station.verification_status)}
                 </div>
                 ${stationDetails(station)}
+                <div class="d-flex gap-3 mt-3">${deleteButton(station.id, 'rejected')}</div>
             </div>
         </div>
     `;
@@ -244,6 +262,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const { action, id, tab } = btn.dataset;
 
+        if (action === 'delete') {
+            await handleDelete(id, tab, btn);
+            return;
+        }
+
         // Reject/Suspend are consequential (confirm() dialog, matching this
         // project's existing convention); Verify/Reactivate are not.
         if (action === 'reject' && !confirm('Reject this station? The owner will need to resubmit or contact support.')) {
@@ -275,6 +298,57 @@ document.addEventListener('DOMContentLoaded', () => {
         // this project's established "never patch client-side" discipline.
         await loadTab(tab, document.getElementById(`${tab}-list`).dataset.currentUrl);
     });
+
+    /**
+     * Two-phase delete, matching what the backend actually requires:
+     * 1. A plain confirm() gates every delete attempt up front, regardless
+     *    of what the station has attached to it - the same "destructive
+     *    action needs confirm() first" discipline as Reject/Suspend above.
+     * 2. The first DELETE call never has a `confirmed` flag. If the
+     *    station has real charging_sessions/reviews that would be
+     *    cascade-destroyed, the backend deliberately does NOT delete yet -
+     *    it responds 422 with `requires_confirmation: true` and the real
+     *    counts, which is shown in a second, specific confirm() dialog.
+     *    Only accepting that shows the exact numbers being lost triggers
+     *    the real, confirmed=true delete. A station with no history (or a
+     *    hard route-history block, which can never be forced) resolves on
+     *    the first call.
+     */
+    async function handleDelete(id, tab, btn) {
+        if (!confirm('Delete this station? This cannot be undone.')) return;
+
+        errorBox.classList.add('d-none');
+        btn.disabled = true;
+
+        let response = await apiFetch(`/api/admin/stations/${id}`, { method: 'DELETE' });
+
+        if (response.status === 422) {
+            const data = await response.json().catch(() => null);
+
+            if (data?.requires_confirmation) {
+                if (!confirm(data.message)) {
+                    btn.disabled = false;
+                    return;
+                }
+                response = await apiFetch(`/api/admin/stations/${id}?confirmed=true`, { method: 'DELETE' });
+            } else {
+                errorBox.textContent = data?.message || 'Unable to delete this station. Please try again.';
+                errorBox.classList.remove('d-none');
+                btn.disabled = false;
+                return;
+            }
+        }
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => null);
+            errorBox.textContent = data?.message || 'Unable to delete this station. Please try again.';
+            errorBox.classList.remove('d-none');
+            btn.disabled = false;
+            return;
+        }
+
+        await loadTab(tab, document.getElementById(`${tab}-list`).dataset.currentUrl);
+    }
 
     const debouncedSearch = debounce(() => {
         searchQuery = searchInput.value.trim();
